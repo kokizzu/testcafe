@@ -16,19 +16,25 @@ if (config.useLocalBrowsers) {
             state:     {},
             idNameMap: {},
 
-            openBrowser (browserId, pageUrl, name) {
-                const self = this;
+            openBrowser (browserId, pageUrl, browserConfig) {
+                const self       = this;
+                const providerId = typeof browserConfig ===
+                                   'string' ? browserConfig : browserConfig.userArgs.replace(/\W*/, '');
 
-                this.idNameMap[browserId] = name;
-                this.state[name]          = {};
+                this.idNameMap[browserId] = providerId;
+                this.state[providerId]    = {};
 
-                if (/failed/.test(name)) {
+                if (/failed/.test(providerId)) {
                     setTimeout(function () {
                         self.simulateError(browserId);
                     }, BROWSER_OPENING_DELAY);
                 }
 
-                return chromeBrowserProvider.openBrowser.call(this, browserId, pageUrl, 'headless --no-sandbox');
+                return chromeBrowserProvider.openBrowser.call(this, browserId, pageUrl, {
+                    ...browserConfig,
+                    userArgs: `--no-sandbox ${browserConfig.userArgs}`,
+                    headless: true,
+                });
             },
 
             closeBrowser (browserId) {
@@ -56,7 +62,7 @@ if (config.useLocalBrowsers) {
                 const bc = BrowserConnection.getById(browserId);
 
                 bc.emit('error', new Error('Connection error'));
-            }
+            },
         });
 
 
@@ -66,7 +72,7 @@ if (config.useLocalBrowsers) {
                 .src(path.join(__dirname, file))
                 .reporter('json', {
                     write: noop,
-                    end:   noop
+                    end:   noop,
                 })
                 .browsers(browsers)
                 .run();
@@ -92,7 +98,7 @@ if (config.useLocalBrowsers) {
         });
 
         it('Should report job results to the providers', function () {
-            return run(['chrome:id-1', 'chrome:id-2'], './testcafe-fixtures/index-test.js')
+            return run(['chrome --id-1', 'chrome --id-2'], './testcafe-fixtures/index-test.js')
                 .then(function () {
                     expect(mockProvider.plugin.state['id-1'].result).eql(mockProvider.plugin.JOB_RESULT.done);
                     expect(mockProvider.plugin.state['id-1'].data).eql({ total: 2, passed: 1 });
@@ -102,7 +108,7 @@ if (config.useLocalBrowsers) {
         });
 
         it('Should report job error to the providers', () => {
-            return run(['chrome:failed-1', 'chrome:id-2'], './testcafe-fixtures/long-test.js')
+            return run(['chrome --failed-1', 'chrome --id-2'], './testcafe-fixtures/long-test.js')
                 .then(() => {
                     throw new Error('Promise rejection expected');
                 })
@@ -115,7 +121,7 @@ if (config.useLocalBrowsers) {
         });
 
         it('Should report job cancellation to the providers', function () {
-            return run(['chrome:id-1', 'chrome:id-2'], './testcafe-fixtures/long-test.js')
+            return run(['chrome --id-1', 'chrome --id-2'], './testcafe-fixtures/long-test.js')
                 .cancel()
                 .then(function () {
                     expect(mockProvider.plugin.state['id-1'].result).eql(mockProvider.plugin.JOB_RESULT.aborted);

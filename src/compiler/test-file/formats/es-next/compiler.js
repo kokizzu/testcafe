@@ -11,14 +11,16 @@ export default class ESNextTestFileCompiler extends APIBasedTestFileCompilerBase
             transformRuntime,
             presetEnvForTestCode,
             presetReact,
-            moduleResolver
+            moduleResolver,
+            proposalPrivateMethods,
+            proposalClassProperties,
         } = loadBabelLibs();
 
         const opts = Object.assign({}, BASE_BABEL_OPTIONS, {
             presets:    [presetStage2, presetEnvForTestCode, presetReact],
-            plugins:    [transformRuntime, moduleResolver],
+            plugins:    [transformRuntime, moduleResolver, proposalPrivateMethods, proposalClassProperties],
             sourceMaps: 'inline',
-            filename
+            filename,
         });
 
         if (isFlowCode(code))

@@ -1,5 +1,5 @@
 import { has, set } from 'lodash';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import dedent from 'dedent';
 import { readSync as read } from 'read-file-relative';
 import { GeneralError } from '../errors/runtime';
@@ -9,11 +9,12 @@ import getViewPortWidth from '../utils/get-viewport-width';
 import { wordWrap, splitQuotedText } from '../utils/string';
 import {
     getSSLOptions,
+    getQuarantineOptions,
     getScreenshotOptions,
     getVideoOptions,
     getMetaOptions,
     getGrepOptions,
-    getCompilerOptions
+    getCompilerOptions,
 } from '../utils/get-options';
 
 import getFilterFn from '../utils/get-filter-fn';
@@ -22,8 +23,9 @@ import RUN_OPTION_NAMES from '../configuration/run-option-names';
 import {
     Dictionary,
     ReporterOption,
-    RunnerRunOptions
+    RunnerRunOptions,
 } from '../configuration/interfaces';
+import QUARANTINE_OPTION_NAMES from '../configuration/quarantine-option-names';
 
 
 const REMOTE_ALIAS_RE = /^remote(?::(\d*))?$/;
@@ -61,6 +63,7 @@ interface CommandLineOptions {
     ajaxRequestTimeout?: string | number;
     browserInitTimeout?: string | number;
     concurrency?: string | number;
+    quarantineMode?: boolean | Dictionary<string | number>;
     ports?: string | number[];
     providerName?: string;
     ssl?: string | Dictionary<string | number | boolean >;
@@ -72,11 +75,11 @@ interface CommandLineOptions {
     videoEncodingOptions?: string | Dictionary<number | string | boolean>;
     compilerOptions?: string | Dictionary<number | string | boolean>;
     configFile?: string;
+    isProxyless?: boolean;
 }
 
 export default class CLIArgumentParser {
     private readonly program: Command;
-    private readonly experimental: Command;
     private cwd: string;
     private remoteCount: number;
     public opts: CommandLineOptions;
@@ -84,7 +87,6 @@ export default class CLIArgumentParser {
 
     public constructor (cwd: string) {
         this.program      = new Command('testcafe');
-        this.experimental = new Command('testcafe-experimental');
         this.cwd          = cwd || process.cwd();
         this.remoteCount  = 0;
         this.opts         = {};
@@ -94,7 +96,7 @@ export default class CLIArgumentParser {
     }
 
     private static _parsePortNumber (value: string): number {
-        assertType(is.nonNegativeNumberString, null, 'Port number', value);
+        assertType(is.nonNegativeNumberString, null, 'The port number', value);
 
         return parseInt(value, 10);
     }
@@ -117,7 +119,7 @@ export default class CLIArgumentParser {
             .option('-s, --screenshots <option=value[,...]>', 'specify screenshot options')
             .option('-S, --screenshots-on-fails', 'take a screenshot whenever a test fails')
             .option('-p, --screenshot-path-pattern <pattern>', 'use patterns to compose screenshot file names and paths: ${BROWSER}, ${BROWSER_VERSION}, ${OS}, etc.')
-            .option('-q, --quarantine-mode', 'enable the quarantine mode')
+            .option('-q, --quarantine-mode [option=value,...]', 'enable quarantine mode and (optionally) modify quarantine mode settings')
             .option('-d, --debug-mode', 'execute test steps one by one pausing the test after each step')
             .option('-e, --skip-js-errors', 'make tests not fail when a JS error happens on a page')
             .option('-u, --skip-uncaught-errors', 'ignore uncaught errors and unhandled promise rejections, which occur during test execution')
@@ -159,17 +161,15 @@ export default class CLIArgumentParser {
             .option('--disable-screenshots', 'disable screenshots')
             .option('--screenshots-full-page', 'enable full-page screenshots')
             .option('--compiler-options <option=value[,...]>', 'specify test file compiler options')
+            .option('--disable-multiple-windows', 'disable multiple windows mode')
 
             // NOTE: these options will be handled by chalk internally
             .option('--color', 'force colors in command line')
-            .option('--no-color', 'disable colors in command line');
+            .option('--no-color', 'disable colors in command line')
 
-        // NOTE: temporary hide experimental options from --help command
-        this.experimental
-            .allowUnknownOption()
-            .option('--disable-multiple-windows', 'disable multiple windows mode')
-            .option('--experimental-compiler-service', 'run compiler in a separate process')
-            .option('--cache', 'cache web assets between test runs');
+            // NOTE: temporary hide experimental options from --help command
+            .addOption(new Option('--experimental-compiler-service', 'run compiler in a separate process').hideHelp())
+            .addOption(new Option('--cache', 'cache web assets between test runs').hideHelp());
     }
 
     private _parseList (val: string): string[] {
@@ -206,7 +206,7 @@ export default class CLIArgumentParser {
 
     private _parseAppInitDelay (): void {
         if (this.opts.appInitDelay) {
-            assertType(is.nonNegativeNumberString, null, 'Tested app initialization delay', this.opts.appInitDelay);
+            assertType(is.nonNegativeNumberString, null, 'The tested app initialization delay', this.opts.appInitDelay);
 
             this.opts.appInitDelay = parseInt(this.opts.appInitDelay as string, 10);
         }
@@ -214,7 +214,7 @@ export default class CLIArgumentParser {
 
     private _parseSelectorTimeout (): void {
         if (this.opts.selectorTimeout) {
-            assertType(is.nonNegativeNumberString, null, 'Selector timeout', this.opts.selectorTimeout);
+            assertType(is.nonNegativeNumberString, null, 'The Selector timeout', this.opts.selectorTimeout);
 
             this.opts.selectorTimeout = parseInt(this.opts.selectorTimeout as string, 10);
         }
@@ -222,7 +222,7 @@ export default class CLIArgumentParser {
 
     private _parseAssertionTimeout (): void {
         if (this.opts.assertionTimeout) {
-            assertType(is.nonNegativeNumberString, null, 'Assertion timeout', this.opts.assertionTimeout);
+            assertType(is.nonNegativeNumberString, null, 'The assertion timeout', this.opts.assertionTimeout);
 
             this.opts.assertionTimeout = parseInt(this.opts.assertionTimeout as string, 10);
         }
@@ -230,7 +230,7 @@ export default class CLIArgumentParser {
 
     private _parsePageLoadTimeout (): void {
         if (this.opts.pageLoadTimeout) {
-            assertType(is.nonNegativeNumberString, null, 'Page load timeout', this.opts.pageLoadTimeout);
+            assertType(is.nonNegativeNumberString, null, 'The page load timeout', this.opts.pageLoadTimeout);
 
             this.opts.pageLoadTimeout = parseInt(this.opts.pageLoadTimeout as string, 10);
         }
@@ -240,7 +240,7 @@ export default class CLIArgumentParser {
         if (!this.opts.pageRequestTimeout)
             return;
 
-        assertType(is.nonNegativeNumberString, null, 'Page request timeout', this.opts.pageRequestTimeout);
+        assertType(is.nonNegativeNumberString, null, 'The page request timeout', this.opts.pageRequestTimeout);
 
         this.opts.pageRequestTimeout = parseInt(this.opts.pageRequestTimeout as string, 10);
     }
@@ -249,7 +249,7 @@ export default class CLIArgumentParser {
         if (!this.opts.ajaxRequestTimeout)
             return;
 
-        assertType(is.nonNegativeNumberString, null, 'Ajax request timeout', this.opts.ajaxRequestTimeout);
+        assertType(is.nonNegativeNumberString, null, 'The AJAX request timeout', this.opts.ajaxRequestTimeout);
 
         this.opts.ajaxRequestTimeout = parseInt(this.opts.ajaxRequestTimeout as string, 10);
     }
@@ -258,7 +258,7 @@ export default class CLIArgumentParser {
         if (!this.opts.browserInitTimeout)
             return;
 
-        assertType(is.nonNegativeNumberString, null, 'Browser initialization timeout', this.opts.browserInitTimeout);
+        assertType(is.nonNegativeNumberString, null, 'The browser initialization timeout', this.opts.browserInitTimeout);
 
         this.opts.browserInitTimeout = parseInt(this.opts.browserInitTimeout as string, 10);
     }
@@ -271,6 +271,11 @@ export default class CLIArgumentParser {
     private _parseConcurrency (): void {
         if (this.opts.concurrency)
             this.opts.concurrency = parseInt(this.opts.concurrency as string, 10);
+    }
+
+    private async _parseQuarantineOptions (): Promise<void> {
+        if (this.opts.quarantineMode)
+            this.opts.quarantineMode = await getQuarantineOptions('--quarantine-mode', this.opts.quarantineMode);
     }
 
     private _parsePorts (): void {
@@ -364,12 +369,24 @@ export default class CLIArgumentParser {
     }
 
     public async parse (argv: string[]): Promise<void> {
+        // NOTE: move the quarantine mode options to the end of the array to avoid the wrong quarantine mode CLI options parsing (GH-6231)
+        const quarantineOptionIndex = argv.findIndex(
+            el => ['-q', '--quarantine-mode'].some(opt => el.startsWith(opt)));
+
+        if (quarantineOptionIndex > -1) {
+            const isNotLastOption       = quarantineOptionIndex < argv.length - 1;
+            const shouldMoveOptionToEnd = isNotLastOption &&
+                ![QUARANTINE_OPTION_NAMES.attemptLimit, QUARANTINE_OPTION_NAMES.successThreshold].some(opt => argv[quarantineOptionIndex + 1].startsWith(opt));
+
+            if (shouldMoveOptionToEnd)
+                argv.push(argv.splice(quarantineOptionIndex, 1)[0]);
+        }
+
+
         this.program.parse(argv);
-        this.experimental.parse(argv);
 
         this.args = this.program.args;
-
-        this.opts = { ...this.experimental.opts(), ...this.program.opts() };
+        this.opts = this.program.opts();
 
         this._parseListBrowsers();
 
@@ -392,6 +409,7 @@ export default class CLIArgumentParser {
         this._parseFileList();
 
         await this._parseFilteringOptions();
+        await this._parseQuarantineOptions();
         await this._parseScreenshotOptions();
         await this._parseVideoOptions();
         await this._parseCompilerOptions();

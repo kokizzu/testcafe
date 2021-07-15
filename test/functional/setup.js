@@ -39,7 +39,7 @@ const REQUESTED_MACHINES_COUNT = environment.browsers.length;
 const REMOTE_CONNECTORS_MAP = {
     [config.browserProviderNames.browserstack]: BsConnector,
     [config.browserProviderNames.sauceLabs]:    SlConnector,
-    [config.browserProviderNames.remote]:       RemoteConnector
+    [config.browserProviderNames.remote]:       RemoteConnector,
 };
 
 const USE_PROVIDER_POOL = config.useLocalBrowsers || isBrowserStack;
@@ -53,12 +53,12 @@ function getBrowserInfo (settings) {
 
             return browserProviderPool
                 .getBrowserInfo(settings.browserName)
-                .then(browserInfo => new BrowserConnection(testCafe.browserConnectionGateway, browserInfo, true));
+                .then(browserInfo => new BrowserConnection(testCafe.browserConnectionGateway, browserInfo, true, false, config.isProxyless));
         })
         .then(connection => {
             return {
                 settings:   settings,
-                connection: connection
+                connection: connection,
             };
         });
 }
@@ -87,7 +87,7 @@ function openRemoteBrowsers () {
             const buildInfo = {
                 jobName: environment.jobName,
                 build:   process.env.TRAVIS_BUILD_ID || '',
-                tags:    [process.env.TRAVIS_BRANCH || 'master']
+                tags:    [process.env.TRAVIS_BRANCH || 'master'],
             };
 
             const openBrowserPromises = browsersInfo.map(browserInfo => {
@@ -153,7 +153,8 @@ before(function () {
 
         retryTestPages,
 
-        experimentalCompilerService: !!process.env.EXPERIMENTAL_COMPILER_SERVICE
+        experimentalCompilerService: !!process.env.EXPERIMENTAL_COMPILER_SERVICE,
+        isProxyless:                 config.isProxyless,
     };
 
     return createTestCafe(testCafeOptions)
@@ -200,6 +201,8 @@ before(function () {
                 const clientScripts               = opts && opts.clientScripts || [];
                 const compilerOptions             = opts && opts.compilerOptions;
 
+                testCafe.runner = runner;
+
                 const {
                     skipJsErrors,
                     quarantineMode,
@@ -223,7 +226,7 @@ before(function () {
                     disableScreenshots,
                     disableMultipleWindows,
                     pageRequestTimeout,
-                    ajaxRequestTimeout
+                    ajaxRequestTimeout,
                 } = opts;
 
                 const actualBrowsers = browsersInfo.filter(browserInfo => {
@@ -287,7 +290,7 @@ before(function () {
                         disableScreenshots,
                         disableMultipleWindows,
                         pageRequestTimeout,
-                        ajaxRequestTimeout
+                        ajaxRequestTimeout,
                     })
                     .then(failedCount => {
                         if (customReporters)

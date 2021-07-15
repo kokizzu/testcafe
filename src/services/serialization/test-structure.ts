@@ -1,17 +1,21 @@
 import { uniq, keyBy } from 'lodash';
-import { TEST_FUNCTION_PROPERTIES } from '../compiler/protocol';
-
+import { FUNCTION_PROPERTIES } from '../compiler/protocol';
+import { RequestFilterRuleLocator } from '../compiler/interfaces';
 import Test from '../../api/structure/test';
 import Fixture from '../../api/structure/fixture';
 import TestFile from '../../api/structure/test-file';
 import UnitType from '../../api/structure/unit-type';
-import { RequestFilterRule } from 'testcafe-hammerhead';
+import { RequestInfo } from 'testcafe-hammerhead';
 
 
 const RECURSIVE_PROPERTIES = ['testFile', 'fixture', 'currentFixture', 'collectedTests'] as const;
 
 interface FunctionMapper {
-    (id: string, functionName: typeof TEST_FUNCTION_PROPERTIES[number]): Function;
+    (id: string, functionName: typeof FUNCTION_PROPERTIES[number]): Function;
+}
+
+interface RequestFilterRuleMapper {
+    (ruleLocator: RequestFilterRuleLocator): (requestInfo: RequestInfo) => Promise<boolean>;
 }
 
 interface MapperArguments<T, P> {
@@ -56,12 +60,12 @@ function mapProperties<T extends Readonly<object>, P extends Readonly<string[]>>
     }
 }
 
-function replaceTestFunctions (unit: Unit): void {
-    mapProperties(unit, TEST_FUNCTION_PROPERTIES, ({ item }) => !!item);
+function replaceFunctionProperties (unit: Unit): void {
+    mapProperties(unit, FUNCTION_PROPERTIES, ({ item }) => !!item);
 }
 
-function restoreTestFunctions (unit: Unit, mapper: FunctionMapper): void {
-    mapProperties(unit, TEST_FUNCTION_PROPERTIES, ({ item, object, property }) => item ? mapper(object.id, property) : item);
+function restoreFunctionProperties (unit: Unit, mapper: FunctionMapper): void {
+    mapProperties(unit, FUNCTION_PROPERTIES, ({ item, object, property }) => item ? mapper(object.id, property) : item);
 }
 
 function flattenRecursiveProperties (unit: Unit): void {
@@ -72,9 +76,20 @@ function restoreRecursiveProperties (unit: Unit, units: Units): void {
     mapProperties(unit, RECURSIVE_PROPERTIES, ({ item }) => units[item]);
 }
 
-function restoreRequestFilterRulesInHooks (test: Test): void {
+function restorePredicateInRequestFilterRules (test: Test, mapper: RequestFilterRuleMapper): void {
     test.requestHooks.forEach(hook => {
-        hook._requestFilterRules = RequestFilterRule.fromArray(hook._requestFilterRules as object[]);
+        for (let i = 0; i < hook._requestFilterRules.length; i++) {
+            const targetRule = hook._requestFilterRules[i];
+
+            if (!targetRule.isPredicate)
+                continue;
+
+            targetRule.options = mapper({
+                testId: test.id,
+                hookId: hook.id,
+                ruleId: targetRule.id,
+            });
+        }
     });
 }
 
@@ -92,7 +107,7 @@ export function serialize (units: Units): Units {
         // @ts-ignore
         const copy: Unit = { ...unit };
 
-        replaceTestFunctions(copy);
+        replaceFunctionProperties(copy);
         flattenRecursiveProperties(copy);
 
         result[copy.id] = copy;
@@ -101,23 +116,20 @@ export function serialize (units: Units): Units {
     return result;
 }
 
-export function restore (units: Units, mapper: FunctionMapper): Test[] {
+export function restore (units: Units, testFunctionMapper: FunctionMapper, ruleMapper: RequestFilterRuleMapper): Test[] {
     const list = Object.values(units);
 
     const result: Test[] = [];
 
     for (const unit of list) {
         restoreRecursiveProperties(unit, units);
-        restoreTestFunctions(unit, mapper);
-    }
+        restoreFunctionProperties(unit, testFunctionMapper);
 
-    for (const unit of list) {
         if (isTest(unit)) {
-            restoreRequestFilterRulesInHooks(unit as Test);
+            restorePredicateInRequestFilterRules(unit, ruleMapper);
 
             result.push(unit);
         }
-
     }
 
     return result;

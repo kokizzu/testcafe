@@ -1,5 +1,5 @@
 import Configuration from './configuration-base';
-import { castArray } from 'lodash';
+import { castArray, flatten } from 'lodash';
 import { getGrepOptions, getSSLOptions } from '../utils/get-options';
 import OPTION_NAMES from './option-names';
 import getFilterFn from '../utils/get-filter-fn';
@@ -17,7 +17,7 @@ import {
     DEFAULT_SOURCE_DIRECTORIES,
     DEFAULT_DEVELOPMENT_MODE,
     DEFAULT_RETRY_TEST_PAGES,
-    getDefaultCompilerOptions
+    getDefaultCompilerOptions,
 } from './default-values';
 
 import OptionSource from './option-source';
@@ -25,12 +25,14 @@ import {
     Dictionary,
     FilterOption,
     ReporterOption,
-    TypeScriptCompilerOptions
+    TypeScriptCompilerOptions,
 } from './interfaces';
 
 import CustomizableCompilers from './customizable-compilers';
 import { DEPRECATED, getDeprecationMessage } from '../notifications/deprecated';
 import WarningLog from '../notifications/warning-log';
+import browserProviderPool from '../browser/provider/pool';
+import BrowserConnection, { BrowserInfo } from '../browser/connection';
 
 const CONFIGURATION_FILENAME = '.testcaferc.json';
 
@@ -38,7 +40,6 @@ const DEFAULT_SCREENSHOTS_DIRECTORY = 'screenshots';
 
 const OPTION_FLAG_NAMES = [
     OPTION_NAMES.skipJsErrors,
-    OPTION_NAMES.quarantineMode,
     OPTION_NAMES.debugMode,
     OPTION_NAMES.debugOnFail,
     OPTION_NAMES.skipUncaughtErrors,
@@ -47,13 +48,13 @@ const OPTION_FLAG_NAMES = [
     OPTION_NAMES.disablePageCaching,
     OPTION_NAMES.disablePageReloads,
     OPTION_NAMES.disableScreenshots,
-    OPTION_NAMES.disableMultipleWindows
+    OPTION_NAMES.disableMultipleWindows,
 ];
 
 const OPTION_INIT_FLAG_NAMES = [
     OPTION_NAMES.developmentMode,
     OPTION_NAMES.retryTestPages,
-    OPTION_NAMES.cache
+    OPTION_NAMES.cache,
 ];
 
 interface TestCafeAdditionalStartOptions {
@@ -69,6 +70,8 @@ interface TestCafeStartOptions {
     port2?: number;
     options: TestCafeAdditionalStartOptions;
 }
+
+type BrowserInfoSource = BrowserInfo | BrowserConnection;
 
 export default class TestCafeConfiguration extends Configuration {
     public constructor (configFile = CONFIGURATION_FILENAME) {
@@ -89,6 +92,9 @@ export default class TestCafeConfiguration extends Configuration {
         }
 
         this.mergeOptions(options);
+
+        if (this._options.browsers)
+            this._options.browsers.value = await this._getBrowserInfo();
     }
 
     public prepare (): void {
@@ -126,8 +132,8 @@ export default class TestCafeConfiguration extends Configuration {
                 ssl:             this.getOption(OPTION_NAMES.ssl) as string,
                 developmentMode: this.getOption(OPTION_NAMES.developmentMode) as boolean,
                 retryTestPages:  this.getOption(OPTION_NAMES.retryTestPages) as boolean,
-                cache:           this.getOption(OPTION_NAMES.cache) as boolean
-            }
+                cache:           this.getOption(OPTION_NAMES.cache) as boolean,
+            },
         };
 
         return result;
@@ -228,11 +234,22 @@ export default class TestCafeConfiguration extends Configuration {
             let typeScriptCompilerOptions = compilerOptionValue[CustomizableCompilers.typescript] as TypeScriptCompilerOptions;
 
             typeScriptCompilerOptions = Object.assign({
-                configPath: tsConfigPath
+                configPath: tsConfigPath,
             }, typeScriptCompilerOptions);
 
             (compilerOptions.value as CompilerOptions)[CustomizableCompilers.typescript] = typeScriptCompilerOptions;
         }
+    }
+
+    private async _getBrowserInfo (): Promise<BrowserInfoSource[]> {
+        if (!this._options.browsers.value)
+            return [];
+
+        const browsers = Array.isArray(this._options.browsers.value) ? [...this._options.browsers.value] : [this._options.browsers.value];
+
+        const browserInfo = await Promise.all(browsers.map(browser => browserProviderPool.getBrowserInfo(browser)));
+
+        return flatten(browserInfo);
     }
 
     public static get FILENAME (): string {

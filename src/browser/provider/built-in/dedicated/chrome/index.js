@@ -5,14 +5,14 @@ import ChromeRunTimeInfo from './runtime-info';
 import getConfig from './config';
 import { start as startLocalChrome, stop as stopLocalChrome } from './local-chrome';
 import { GET_WINDOW_DIMENSIONS_INFO_SCRIPT } from '../../../utils/client-functions';
-import { BrowserClient } from './browser-client';
+import { BrowserClient } from './cdp-client';
 
 const MIN_AVAILABLE_DIMENSION = 50;
 
 export default {
     ...dedicatedProviderBase,
 
-    _getConfig (name) {
+    getConfig (name) {
         return getConfig(name);
     },
 
@@ -20,8 +20,8 @@ export default {
         return runtimeInfo.browserClient;
     },
 
-    async _createRunTimeInfo (hostName, configString, disableMultipleWindows) {
-        return ChromeRunTimeInfo.create(hostName, configString, disableMultipleWindows);
+    async _createRunTimeInfo (hostName, config, disableMultipleWindows) {
+        return ChromeRunTimeInfo.create(hostName, config, disableMultipleWindows);
     },
 
     _setUserAgentMetaInfoForEmulatingDevice (browserId, config) {
@@ -33,22 +33,22 @@ export default {
 
         const metaInfo = `Emulating ${deviceName}`;
         const options  = {
-            appendToUserAgent: true
+            appendToUserAgent: true,
         };
 
         this.setUserAgentMetaInfo(browserId, metaInfo, options);
     },
 
-    async openBrowser (browserId, pageUrl, configString, disableMultipleWindows) {
+    async openBrowser (browserId, pageUrl, config, disableMultipleWindows, isProxyless) {
         const parsedPageUrl = parseUrl(pageUrl);
-        const runtimeInfo   = await this._createRunTimeInfo(parsedPageUrl.hostname, configString, disableMultipleWindows);
+        const runtimeInfo   = await this._createRunTimeInfo(parsedPageUrl.hostname, config, disableMultipleWindows);
 
         runtimeInfo.browserName = this._getBrowserName();
         runtimeInfo.browserId   = browserId;
 
         runtimeInfo.providerMethods = {
             resizeLocalBrowserWindow: (...args) => this.resizeLocalBrowserWindow(...args),
-            reportWarning:            (...args) => this.reportWarning(browserId, ...args)
+            reportWarning:            (...args) => this.reportWarning(browserId, ...args),
         };
 
         await startLocalChrome(pageUrl, runtimeInfo);
@@ -62,7 +62,7 @@ export default {
         if (!disableMultipleWindows)
             runtimeInfo.activeWindowId = this.calculateWindowId();
 
-        const browserClient = new BrowserClient(runtimeInfo);
+        const browserClient = new BrowserClient(runtimeInfo, isProxyless);
 
         this.openedBrowsers[browserId] = runtimeInfo;
 
@@ -120,7 +120,10 @@ export default {
             hasTakeScreenshot:              !!client,
             hasChromelessScreenshots:       !!client,
             hasGetVideoFrameData:           !!client,
-            hasCanResizeWindowToDimensions: false
+            hasCanResizeWindowToDimensions: false,
+            hasExecuteClientFunction:       !!client,
+            hasSwitchToIframe:              !!client,
+            hasSwitchToMainWindow:          !!client,
         };
     },
 
@@ -131,5 +134,5 @@ export default {
 
             await this.resizeWindow(browserId, newWidth, newHeight, outerWidth, outerHeight);
         }
-    }
+    },
 };

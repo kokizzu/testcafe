@@ -4,14 +4,14 @@ function getPresetEnvForTestCodeOpts () {
     return {
         targets: { node: 'current' },
         loose:   true,
-        exclude: ['transform-regenerator']
+        exclude: ['transform-regenerator'],
     };
 }
 
 function getPresetEnvForClientFunctionOpts () {
     return {
         loose:   true,
-        exclude: ['transform-typeof-symbol', 'transform-for-of']
+        exclude: ['transform-typeof-symbol', 'transform-for-of'],
     };
 }
 
@@ -22,7 +22,7 @@ function getModuleResolverOpts () {
                 return EXPORTABLE_LIB_PATH;
 
             return source;
-        }
+        },
     };
 }
 
@@ -37,7 +37,7 @@ function getTransformRuntimeOpts () {
     // because of '@babel/plugin-transform-runtime' plugin cannot correctly resolve path
     // to the helpers from the '@babel/runtime' module.
     return {
-        'helpers': false
+        'helpers': false,
     };
 }
 
@@ -60,6 +60,8 @@ export default function loadLibs () {
         presetEnvForClientFunction: [require('@babel/preset-env'), getPresetEnvForClientFunctionOpts()],
         presetEnvForTestCode:       [require('@babel/preset-env'), getPresetEnvForTestCodeOpts()],
         moduleResolver:             [require('babel-plugin-module-resolver'), getModuleResolverOpts()],
-        presetReact:                getPresetReact()
+        presetReact:                getPresetReact(),
+        proposalPrivateMethods:     [require('@babel/plugin-proposal-private-methods'), { loose: true }],
+        proposalClassProperties:    [require('@babel/plugin-proposal-class-properties'), { loose: true }],
     };
 }

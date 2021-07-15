@@ -49,9 +49,9 @@ describe('TestCafeConfiguration', function () {
             'src':      'path1/folder',
             'ssl':      {
                 'key':                keyFile.name,
-                'rejectUnauthorized': 'true'
+                'rejectUnauthorized': 'true',
             },
-            'browsers':    'ie',
+            'browsers':    'remote',
             'concurrency': 0.5,
             'filter':      {
                 'fixture':     'testFixture',
@@ -59,7 +59,7 @@ describe('TestCafeConfiguration', function () {
                 'testGrep':    'test\\d',
                 'fixtureGrep': 'fixture\\d',
                 'testMeta':    { test: 'meta' },
-                'fixtureMeta': { fixture: 'meta' }
+                'fixtureMeta': { fixture: 'meta' },
             },
             'clientScripts': 'test-client-script.js',
         });
@@ -97,8 +97,9 @@ describe('TestCafeConfiguration', function () {
 
                         expect(ssl.key).eql(keyFileContent);
                         expect(ssl.rejectUnauthorized).eql(true);
-                        expect(testCafeConfiguration.getOption('src')).eql([ 'path1/folder' ]);
-                        expect(testCafeConfiguration.getOption('browsers')).eql([ 'ie' ]);
+                        expect(testCafeConfiguration.getOption('src')).eql(['path1/folder']);
+                        expect(testCafeConfiguration.getOption('browsers')).to.be.an('array').that.not.empty;
+                        expect(testCafeConfiguration.getOption('browsers')[0]).to.include({ providerName: 'remote' });
                         expect(testCafeConfiguration.getOption('concurrency')).eql(0.5);
                         expect(testCafeConfiguration.getOption('filter')).to.be.a('function');
                         expect(testCafeConfiguration.getOption('filter').testGrep.test('test1')).to.be.true;
@@ -113,7 +114,7 @@ describe('TestCafeConfiguration', function () {
                 let optionValue = null;
 
                 createTestCafeConfigurationFile({
-                    reporter: 'json'
+                    reporter: 'json',
                 });
 
                 return testCafeConfiguration
@@ -125,7 +126,7 @@ describe('TestCafeConfiguration', function () {
                         expect(optionValue[0].name).eql('json');
 
                         createTestCafeConfigurationFile({
-                            reporter: ['json', 'minimal']
+                            reporter: ['json', 'minimal'],
                         });
 
                         return testCafeConfiguration.init();
@@ -140,8 +141,8 @@ describe('TestCafeConfiguration', function () {
                         createTestCafeConfigurationFile({
                             reporter: [ {
                                 name: 'json',
-                                file: 'path/to/file'
-                            }]
+                                file: 'path/to/file',
+                            }],
                         });
 
                         return testCafeConfiguration.init();
@@ -163,7 +164,7 @@ describe('TestCafeConfiguration', function () {
                             'pathPattern': 'screenshot-path-pattern',
                             'takeOnFails': true,
                             'fullPage':    true,
-                        }
+                        },
                     });
 
                     return testCafeConfiguration.init()
@@ -173,22 +174,22 @@ describe('TestCafeConfiguration', function () {
                                     path:        'modified-path',
                                     pathPattern: 'modified-pattern',
                                     takeOnFails: false,
-                                    fullPage:    false
-                                }
+                                    fullPage:    false,
+                                },
                             });
 
                             expect(testCafeConfiguration.getOption('screenshots')).eql({
                                 path:        'modified-path',
                                 pathPattern: 'modified-pattern',
                                 takeOnFails: false,
-                                fullPage:    false
+                                fullPage:    false,
                             });
 
                             expect(testCafeConfiguration._overriddenOptions).eql([
                                 'screenshots.path',
                                 'screenshots.pathPattern',
                                 'screenshots.takeOnFails',
-                                'screenshots.fullPage'
+                                'screenshots.fullPage',
                             ]);
                         });
                 });
@@ -197,8 +198,8 @@ describe('TestCafeConfiguration', function () {
                     createTestCafeConfigurationFile({
                         'screenshots': {
                             'path':        'screenshot-path',
-                            'pathPattern': 'screenshot-path-pattern'
-                        }
+                            'pathPattern': 'screenshot-path-pattern',
+                        },
                     });
 
                     return testCafeConfiguration.init()
@@ -208,13 +209,13 @@ describe('TestCafeConfiguration', function () {
                                     path:        'modified-path',
                                     pathPattern: void 0,
                                     takeOnFails: false,
-                                }
+                                },
                             });
 
                             expect(testCafeConfiguration.getOption('screenshots')).eql({
                                 path:        'modified-path',
                                 pathPattern: 'screenshot-path-pattern',
-                                takeOnFails: false
+                                takeOnFails: false,
                             });
 
                             expect(testCafeConfiguration._overriddenOptions).eql(['screenshots.path']);
@@ -225,8 +226,8 @@ describe('TestCafeConfiguration', function () {
                     createTestCafeConfigurationFile({
                         'screenshots': {
                             'path':        'screenshot-path',
-                            'pathPattern': 'screenshot-path-pattern'
-                        }
+                            'pathPattern': 'screenshot-path-pattern',
+                        },
                     });
 
                     return testCafeConfiguration.init()
@@ -238,7 +239,7 @@ describe('TestCafeConfiguration', function () {
 
                             expect(testCafeConfiguration.getOption('screenshots')).eql({
                                 path:        'screenshot-path',
-                                pathPattern: 'screenshot-path-pattern'
+                                pathPattern: 'screenshot-path-pattern',
                             });
                         });
                 });
@@ -253,7 +254,7 @@ describe('TestCafeConfiguration', function () {
                         },
                         'screenshotPath':         'screenshot-path-2',
                         'screenshotPathPattern':  'screenshot-path-pattern-2',
-                        'takeScreenshotsOnFails': false
+                        'takeScreenshotsOnFails': false,
                     });
 
                     return testCafeConfiguration.init()
@@ -311,7 +312,7 @@ describe('TestCafeConfiguration', function () {
                     testCafeConfiguration.mergeOptions({
                         'hostname': 'anotherHostname',
                         'port1':    'anotherPort1',
-                        'port2':    'anotherPort2'
+                        'port2':    'anotherPort2',
                     });
 
                     testCafeConfiguration.notifyAboutOverriddenOptions();
@@ -338,66 +339,54 @@ describe('TestCafeConfiguration', function () {
     describe('Should copy value from "tsConfigPath" to compiler options', () => {
         it('only tsConfigPath is specified', () => {
             const configuration = new TestCafeConfiguration();
-            let runner          = null;
+            const runner        = new RunnerCtor({ configuration });
 
-            return configuration.init()
+            return runner
+                .tsConfigPath('path-to-ts-config')
+                ._applyOptions()
                 .then(() => {
-                    runner = new RunnerCtor({ configuration });
-
-                    runner
-                        .tsConfigPath('path-to-ts-config')
-                        ._setBootstrapperOptions();
-
                     expect(runner.configuration.getOption(OptionNames.compilerOptions)).eql({
                         'typescript': {
-                            configPath: 'path-to-ts-config'
-                        }
+                            configPath: 'path-to-ts-config',
+                        },
                     });
                 });
         });
 
         it('tsConfigPath is specified and compiler options are "undefined"', () => {
             const configuration = new TestCafeConfiguration();
-            let runner          = null;
+            const runner        = new RunnerCtor({ configuration });
 
-            return configuration.init()
+            return runner
+                .tsConfigPath('path-to-ts-config')
+                .compilerOptions(void 0) // emulate command-line run
+                ._applyOptions()
                 .then(() => {
-                    runner = new RunnerCtor({ configuration });
-
-                    runner
-                        .tsConfigPath('path-to-ts-config')
-                        .compilerOptions(void 0) // emulate command-line run
-                        ._setBootstrapperOptions();
-
                     expect(runner.configuration.getOption(OptionNames.compilerOptions)).eql({
                         'typescript': {
-                            configPath: 'path-to-ts-config'
-                        }
+                            configPath: 'path-to-ts-config',
+                        },
                     });
                 });
         });
 
         it('both "tsConfigPath" and compiler options are specified', () => {
             const configuration = new TestCafeConfiguration();
-            let runner          = null;
+            const runner        = new RunnerCtor({ configuration });
 
-            return configuration.init()
+            return runner
+                .tsConfigPath('path-to-ts-config')
+                .compilerOptions({
+                    'typescript': {
+                        configPath: 'path-in-compiler-options',
+                    },
+                })
+                ._applyOptions()
                 .then(() => {
-                    runner = new RunnerCtor({ configuration });
-
-                    runner
-                        .tsConfigPath('path-to-ts-config')
-                        .compilerOptions({
-                            'typescript': {
-                                configPath: 'path-in-compiler-options'
-                            }
-                        })
-                        ._setBootstrapperOptions();
-
                     expect(runner.configuration.getOption(OptionNames.compilerOptions)).eql({
                         'typescript': {
-                            configPath: 'path-in-compiler-options'
-                        }
+                            configPath: 'path-in-compiler-options',
+                        },
                     });
                 });
         });
@@ -430,7 +419,7 @@ describe('TypeScriptConfiguration', function () {
             message = err.message;
         }
 
-        expect(message).eql(`Unable to find the TypeScript configuration file in "${nonExistingConfiguration.filePath}"`);
+        expect(message).eql(`"${nonExistingConfiguration.filePath}" is not a valid TypeScript configuration file.`);
     });
 
     it('Config is not well-formed', () => {
@@ -468,7 +457,7 @@ describe('TypeScriptConfiguration', function () {
             createTypeScriptConfigurationFile({
                 compilerOptions: {
                     experimentalDecorators: false,
-                }
+                },
             });
 
             return defaultTSConfiguration.init()
@@ -504,8 +493,8 @@ describe('TypeScriptConfiguration', function () {
                     declarationDir:      'C:/',
                     composite:           true,
                     outFile:             'oufile.js',
-                    out:                 ''
-                }
+                    out:                 '',
+                },
             });
 
             return typeScriptConfiguration.init()
@@ -551,8 +540,8 @@ describe('TypeScriptConfiguration', function () {
                 compilerOptions: {
                     module:           'commonjs',
                     moduleResolution: 'node',
-                    target:           'es2016'
-                }
+                    target:           'es2016',
+                },
             });
 
             return tsConfiguration.init()
@@ -564,27 +553,23 @@ describe('TypeScriptConfiguration', function () {
         });
 
         it('TestCafe config + TypeScript config', function () {
-            let runner = null;
-
             createTestCafeConfigurationFile({
-                tsConfigPath: customTSConfigFilePath
+                tsConfigPath: customTSConfigFilePath,
             });
 
             createConfigFile(customTSConfigFilePath, {
                 compilerOptions: {
-                    target: 'es5'
-                }
+                    target: 'es5',
+                },
             });
 
             const configuration = new TestCafeConfiguration();
+            const runner        = new RunnerCtor({ configuration });
 
-            return configuration.init()
+            return runner
+                .src('test/server/data/test-suites/typescript-basic/testfile1.ts')
+                ._applyOptions()
                 .then(() => {
-                    runner = new RunnerCtor({ configuration });
-
-                    runner.src('test/server/data/test-suites/typescript-basic/testfile1.ts');
-                    runner._setBootstrapperOptions();
-
                     return runner.bootstrapper._getTests();
                 })
                 .then(() => {
@@ -602,8 +587,8 @@ describe('TypeScriptConfiguration', function () {
 
                 createConfigFile(customTSConfigFilePath, {
                     compilerOptions: {
-                        target: 'es5'
-                    }
+                        target: 'es5',
+                    },
                 });
 
                 runner = new RunnerCtor({ configuration: new TestCafeConfiguration() });
@@ -612,7 +597,8 @@ describe('TypeScriptConfiguration', function () {
                 runner.tsConfigPath(customTSConfigFilePath);
                 runner._setBootstrapperOptions();
 
-                return runner.bootstrapper._getTests()
+                return runner._applyOptions()
+                    .then(() => runner.bootstrapper._getTests())
                     .then(() => {
                         typeScriptConfiguration._filePath = customTSConfigFilePath;
 
@@ -628,13 +614,12 @@ describe('TypeScriptConfiguration', function () {
                     .src('test/server/data/test-suites/typescript-basic/testfile1.ts')
                     .compilerOptions({
                         'typescript': {
-                            'options': { target: 'es5' }
-                        }
+                            'options': { target: 'es5' },
+                        },
                     });
 
-                runner._setBootstrapperOptions();
-
-                return runner.bootstrapper._getTests()
+                return runner._applyOptions()
+                    .then(() => runner.bootstrapper._getTests())
                     .then(() => {
                         expect(consoleWrapper.messages.log).contains('You cannot override the "target" compiler option in the TypeScript configuration file.');
                     });
@@ -657,7 +642,7 @@ describe('TypeScriptConfiguration', function () {
                 'port1':    1234,
                 'port2':    5678,
                 'src':      'path1/folder',
-                'browser':  'ie'
+                'browser':  'ie',
             };
 
             createConfigFile(customConfigFile, options);
@@ -683,7 +668,7 @@ describe('TypeScriptConfiguration', function () {
                 'port1':    1234,
                 'port2':    5678,
                 'src':      'path1/folder',
-                'browser':  'ie'
+                'browser':  'ie',
             };
 
             createConfigFile(defaultFileLocation, options);

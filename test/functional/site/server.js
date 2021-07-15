@@ -2,10 +2,10 @@ const express               = require('express');
 const http                  = require('http');
 const path                  = require('path');
 const bodyParser            = require('body-parser');
-const readSync              = require('read-file-relative').readSync;
+const { readSync }          = require('read-file-relative');
 const multer                = require('multer');
 const Mustache              = require('mustache');
-const readFile              = require('../../../lib/utils/promisified-functions').readFile;
+const { readFile }          = require('../../../lib/utils/promisified-functions');
 const quarantineModeTracker = require('../quarantine-mode-tracker');
 const parseUserAgent        = require('../../../lib/utils/parse-user-agent');
 
@@ -18,14 +18,15 @@ const CONTENT_TYPES = {
     '.html': 'text/html',
     '.png':  'image/png',
     '.zip':  'application/zip',
-    '.pdf':  'application/pdf'
+    '.pdf':  'application/pdf',
+    '.xml':  'application/xml',
 };
 
 const NON_CACHEABLE_PAGES = [
     '/fixtures/api/es-next/roles/pages',
     '/fixtures/api/es-next/request-hooks/pages',
     '/fixtures/regression/gh-2015/pages',
-    '/fixtures/regression/gh-2282/pages'
+    '/fixtures/regression/gh-2282/pages',
 ];
 
 const UPLOAD_SUCCESS_PAGE_TEMPLATE = readSync('./views/upload-success.html.mustache');

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import Compiler from '../../compiler';
 import TestRunProxy from './test-run-proxy';
+import TestController from '../../api/test-controller';
 
 import {
     flatten as flattenTestStructure,
@@ -8,34 +9,50 @@ import {
     isTest,
     serialize as serializeTestStructure,
     Unit,
-    Units
+    Units,
 } from '../serialization/test-structure';
 
 import {
     SERVICE_INPUT_FD,
     SERVICE_OUTPUT_FD,
-    SERVICE_SYNC_FD
+    SERVICE_SYNC_FD,
 } from './io';
 
 import { IPCProxy } from '../utils/ipc/proxy';
 import { ServiceTransport } from '../utils/ipc/transport';
-import sourceMapSupport from 'source-map-support';
 
 import {
     CompilerProtocol,
-    ExecuteActionArguments,
-    ExecuteCommandArguments,
     FunctionProperties,
     isFixtureFunctionProperty,
     isTestFunctionProperty,
+    RunTestArguments,
+} from './protocol';
+
+import {
+    ExecuteActionArguments,
+    ExecuteCommandArguments,
+    ExecuteMockPredicate,
+    ExecuteRequestFilterRulePredicateArguments,
     RemoveHeaderOnConfigureResponseEventArguments,
     RequestHookEventArguments,
-    RunTestArguments,
+    RequestHookLocator,
     SetConfigureResponseEventOptionsArguments,
     SetHeaderOnConfigureResponseEventArguments,
     SetMockArguments,
-    SetOptionsArguments
-} from './protocol';
+    SetOptionsArguments,
+    AddRequestEventListenersArguments,
+    RemoveRequestEventListenersArguments,
+    InitializeTestRunDataArguments,
+    TestRunLocator,
+    SetCtxArguments,
+    ExecuteRoleInitFnArguments,
+    UpdateRolePropertyArguments,
+    ExecuteJsExpressionArguments,
+    ExecuteAsyncJsExpressionArguments,
+    CommandLocator,
+    AddUnexpectedErrorArguments,
+} from './interfaces';
 
 import { CompilerArguments } from '../../compiler/interfaces';
 import Fixture from '../../api/structure/fixture';
@@ -43,30 +60,44 @@ import { Dictionary } from '../../configuration/interfaces';
 import ProcessTitle from '../process-title';
 import Test from '../../api/structure/test';
 import RequestHookMethodNames from '../../api/request-hooks/hook-method-names';
+
 import {
     ConfigureResponseEvent,
+    IncomingMessageLikeInitOptions,
     RequestEvent,
-    ResponseEvent,
-    ResponseMock
+    RequestFilterRule,
+    ResponseMock,
+    responseMockSetBodyMethod,
 } from 'testcafe-hammerhead';
 
-sourceMapSupport.install({
-    hookRequire:              true,
-    handleUncaughtExceptions: false,
-    environment:              'node'
-});
+import RequestHook from '../../api/request-hooks/hook';
+import RequestMock from '../../api/request-hooks/request-mock';
+import Role from '../../role/role';
+import { executeJsExpression, executeAsyncJsExpression } from '../../test-run/execute-js-expression';
+
+import {
+    UncaughtErrorInCustomScript,
+    UncaughtExceptionError,
+    UncaughtTestCafeErrorInCustomScript,
+    UnhandledPromiseRejectionError,
+} from '../../errors/test-run';
+
+import { renderHtmlWithoutStack, shouldRenderHtmlWithoutStack } from '../../errors/test-run/render-error-template/utils';
+import setupSourceMapSupport from '../../utils/setup-sourcemap-support';
+import { formatError } from '../../utils/handle-errors';
+
+setupSourceMapSupport();
 
 interface ServiceState {
     testRuns: { [id: string]: TestRunProxy };
     fixtureCtxs: { [id: string]: object };
     units: Units;
     options: Dictionary<OptionValue>;
+    roles: Map<string, Role>;
 }
 
-interface TestRunProxyCreationArgs {
-    testRunId: string;
-    testId: string;
-    fixtureCtx: unknown;
+interface WrapSetMockArguments extends RequestHookLocator {
+    event: RequestEvent;
 }
 
 class CompilerService implements CompilerProtocol {
@@ -82,6 +113,7 @@ class CompilerService implements CompilerProtocol {
         this.proxy = new IPCProxy(new ServiceTransport(input, output, SERVICE_SYNC_FD));
         this.state = this._initState();
 
+        this._registerErrorHandlers();
         this._setupRoutes();
         this.ready();
     }
@@ -91,61 +123,73 @@ class CompilerService implements CompilerProtocol {
             testRuns:    {},
             fixtureCtxs: {},
             units:       {},
-            options:     {}
+            options:     {},
+            roles:       new Map<string, Role>(),
         };
     }
 
-    private _ensureTestRunProxy ({ testRunId, testId, fixtureCtx }: TestRunProxyCreationArgs): TestRunProxy {
-        if (!this.state.testRuns[testRunId]) {
-            const testRunProxy = new TestRunProxy({
-                dispatcher: this,
-                id:         testRunId,
-                options:    this.state.options,
-                fixtureCtx
-            });
+    private async _handleUnexpectedError (ErrorCtor: Function, error: Error): Promise<void> {
+        const message = formatError(ErrorCtor, error);
+        const type    = ErrorCtor.name;
 
-            const test = this.state.units[testId] as Test;
-
-            testRunProxy.initializeRequestHooks(test);
-
-            this.state.testRuns[testRunId] = testRunProxy;
-        }
-
-        return this.state.testRuns[testRunId];
+        await this.addUnexpectedError({ type, message });
     }
 
-    private _getFixtureCtx ({ id }: RunTestArguments): unknown {
-        const unit = this.state.units[id];
+    private _registerErrorHandlers (): void {
+        process.on('unhandledRejection', async e => this._handleUnexpectedError(UnhandledPromiseRejectionError, e as Error));
+        process.on('uncaughtException', async e => this._handleUnexpectedError(UncaughtExceptionError, e as Error));
+    }
 
+    private _getFixtureCtx (unit: Unit): object {
         const fixtureId = isTest(unit) ? unit.fixture.id : (unit as Fixture).id;
-
-        if (!this.state.fixtureCtxs[fixtureId])
-            this.state.fixtureCtxs[fixtureId] = Object.create(null);
 
         return this.state.fixtureCtxs[fixtureId];
     }
 
-    private _getContext (args: RunTestArguments): TestRunProxy | unknown {
-        const { testRunId, id } = args;
-        const fixtureCtx        = this._getFixtureCtx(args);
+    private _getTestCtx ({ testRunId }: RunTestArguments, unit: Unit): TestRunProxy {
+        const testRunProxy = this._getTargetTestRun(testRunId);
 
-        if (!testRunId)
-            return fixtureCtx;
+        testRunProxy.fixtureCtx = this._getFixtureCtx(unit);
 
-        return this._ensureTestRunProxy({ testRunId, testId: id, fixtureCtx });
+        return testRunProxy;
+    }
+
+    private _getContext (args: RunTestArguments, unit: Unit): TestRunProxy | unknown {
+        const { testRunId } = args;
+
+        if (testRunId)
+            return this._getTestCtx(args, unit);
+
+        return this._getFixtureCtx(unit);
     }
 
     private _setupRoutes (): void {
         this.proxy.register([
             this.getTests,
-            this.runTest,
+            this.runTestFn,
             this.cleanUp,
             this.setOptions,
             this.onRequestHookEvent,
             this.setMock,
             this.setConfigureResponseEventOptions,
             this.setHeaderOnConfigureResponseEvent,
-            this.removeHeaderOnConfigureResponseEvent
+            this.removeHeaderOnConfigureResponseEvent,
+            this.executeRequestFilterRulePredicate,
+            this.executeMockPredicate,
+            this.getWarningMessages,
+            this.addRequestEventListeners,
+            this.removeRequestEventListeners,
+            this.initializeTestRunData,
+            this.getAssertionActualValue,
+            this.executeRoleInitFn,
+            this.getCtx,
+            this.getFixtureCtx,
+            this.setCtx,
+            this.setFixtureCtx,
+            this.updateRoleProperty,
+            this.executeJsExpression,
+            this.executeAsyncJsExpression,
+            this.addUnexpectedError,
         ], this);
     }
 
@@ -156,19 +200,25 @@ class CompilerService implements CompilerProtocol {
         if (isFixture(unit) && isFixtureFunctionProperty(functionName))
             return unit[functionName];
 
-        throw new Error();
+        throw new Error(`Cannot find '${functionName}' function for ${typeof unit}`);
     }
 
-    private _wrapEventMethods (name: RequestHookMethodNames, eventData: RequestEvent | ConfigureResponseEvent | ResponseEvent): void {
+    private _wrapEventMethods ({ name, testId, hookId, eventData }: RequestHookEventArguments): void {
         if (name === RequestHookMethodNames.onRequest)
-            this._wrapSetMockFn(eventData as RequestEvent);
+            this._wrapSetMockFn({ testId, hookId, event: eventData as RequestEvent });
         else if (name === RequestHookMethodNames._onConfigureResponse)
             this._wrapConfigureResponseEventMethods(eventData as ConfigureResponseEvent);
     }
 
-    private _wrapSetMockFn (event: RequestEvent): void {
+    private _wrapSetMockFn ({ testId, hookId, event }: WrapSetMockArguments): void {
         event.setMock = async (mock: ResponseMock) => {
-            await this.setMock({ responseEventId: event.id, mock });
+            await this.setMock({
+                responseEventId: event.id,
+                ruleId:          event.requestFilterRule.id,
+                testId,
+                hookId,
+                mock,
+            });
         };
     }
 
@@ -177,16 +227,45 @@ class CompilerService implements CompilerProtocol {
             await this.setHeaderOnConfigureResponseEvent({
                 eventId:     event.id,
                 headerName:  name,
-                headerValue: value
+                headerValue: value,
             });
         };
 
         event.removeHeader = async (name: string) => {
             await this.removeHeaderOnConfigureResponseEvent({
                 eventId:    event.id,
-                headerName: name
+                headerName: name,
             });
         };
+    }
+
+    private _initializeTestRunProxy (testRunId: string, test: Test, browser: Browser): void {
+        const testRunProxy = new TestRunProxy({
+            dispatcher: this,
+            id:         testRunId,
+            options:    this.state.options,
+            test,
+            browser,
+        });
+
+        this.state.testRuns[testRunId] = testRunProxy;
+    }
+
+    private _initializeFixtureCtx (test: Test): void {
+        const fixtureId = test.fixture.id;
+
+        if (this.state.fixtureCtxs[fixtureId])
+            return;
+
+        this.state.fixtureCtxs[fixtureId] = Object.create(null);
+    }
+
+    private _getTargetTestRun (testRunId: string): TestRunProxy {
+        return this.state.testRuns[testRunId];
+    }
+
+    private _getTargetRole (roleId: string): Role {
+        return this.state.roles.get(roleId) as Role;
     }
 
     public async setOptions ({ value }: SetOptionsArguments): Promise<void> {
@@ -212,43 +291,49 @@ class CompilerService implements CompilerProtocol {
         return serializeTestStructure(units);
     }
 
-    public async runTest (args: RunTestArguments): Promise<unknown> {
+    public async runTestFn (args: RunTestArguments): Promise<unknown> {
         const { id, functionName } = args;
 
         const unit           = this.state.units[id];
-        const context        = this._getContext(args);
+        const context        = this._getContext(args, unit);
         const functionObject = this._getFunction(unit, functionName);
 
         if (!functionObject)
-            throw new Error();
+            throw new Error(`Cannot find the "${functionName}" of ${typeof unit}`);
 
         return await functionObject(context);
+    }
+
+    public executeActionSync ({ id, apiMethodName, command, callsite }: ExecuteActionArguments): unknown {
+        return this.proxy.callSync(this.executeAction, { id, apiMethodName, command, callsite });
     }
 
     public async executeAction ({ id, apiMethodName, command, callsite }: ExecuteActionArguments): Promise<unknown> {
         return this.proxy.call(this.executeAction, { id, apiMethodName, command, callsite });
     }
 
-    public async executeCommand ({ command, id }: ExecuteCommandArguments): Promise<unknown> {
-        return this.proxy.call(this.executeCommand, { id, command });
+    public async executeCommand ({ command, id, callsite }: ExecuteCommandArguments): Promise<unknown> {
+        return this.proxy.call(this.executeCommand, { id, command, callsite });
     }
 
-    public async onRequestHookEvent ({ name, testRunId, testId, hookId, eventData }: RequestHookEventArguments): Promise<void> {
-        const testRunProxy = this._ensureTestRunProxy({ testRunId, testId, fixtureCtx: void 0 });
+    public async onRequestHookEvent ({ name, testId, hookId, eventData }: RequestHookEventArguments): Promise<void> {
+        this._wrapEventMethods({ name, testId, hookId, eventData });
 
-        this._wrapEventMethods(name, eventData);
+        const test       = this.state.units[testId] as Test;
+        const targetHook = test.requestHooks.find(hook => hook.id === hookId) as RequestHook;
 
-        const targetRequestHook = await testRunProxy.onRequestHookEvent({ hookId, name, eventData });
+        // @ts-ignore
+        await targetHook[name].call(targetHook, eventData);
 
-        if (name === RequestHookMethodNames._onConfigureResponse && targetRequestHook._responseEventConfigureOpts) {
+        if (name === RequestHookMethodNames._onConfigureResponse && targetHook._responseEventConfigureOpts) {
             const { opts, id: eventId } = eventData as ConfigureResponseEvent;
 
             await this.setConfigureResponseEventOptions({ eventId, opts });
         }
     }
 
-    public async setMock ({ responseEventId, mock }: SetMockArguments): Promise<void> {
-        await this.proxy.call(this.setMock, { responseEventId, mock });
+    public async setMock ({ testId, hookId, ruleId, responseEventId, mock }: SetMockArguments): Promise<void> {
+        await this.proxy.call(this.setMock, { testId, hookId, ruleId, responseEventId, mock });
     }
 
     public async setConfigureResponseEventOptions ({ eventId, opts }: SetConfigureResponseEventOptionsArguments): Promise<void> {
@@ -261,6 +346,132 @@ class CompilerService implements CompilerProtocol {
 
     public async removeHeaderOnConfigureResponseEvent ({ eventId, headerName }: RemoveHeaderOnConfigureResponseEventArguments): Promise<void> {
         await this.proxy.call(this.removeHeaderOnConfigureResponseEvent, { eventId, headerName });
+    }
+
+    public async executeRequestFilterRulePredicate ({ testId, hookId, ruleId, requestInfo }: ExecuteRequestFilterRulePredicateArguments): Promise<boolean> {
+        const test       = this.state.units[testId] as Test;
+        const targetHook = test.requestHooks.find(hook => hook.id === hookId) as RequestHook;
+        const targetRule = targetHook._requestFilterRules.find(rule => rule.id === ruleId) as RequestFilterRule;
+        const result     = await targetRule.options.call(targetRule, requestInfo);
+
+        return !!result;
+    }
+
+    public async executeMockPredicate ({ testId, hookId, ruleId, requestInfo, res }: ExecuteMockPredicate): Promise<IncomingMessageLikeInitOptions> {
+        const test         = this.state.units[testId] as Test;
+        const requestMock  = test.requestHooks.find(hook => hook.id === hookId) as RequestMock;
+        const responseMock = requestMock.mocks.get(ruleId) as ResponseMock;
+
+        responseMockSetBodyMethod.add(res);
+
+        res = Object.assign(res, await (responseMock.body as Function)(requestInfo, res));
+
+        responseMockSetBodyMethod.remove(res);
+
+        return res;
+    }
+
+    public async getWarningMessages ({ testRunId }: TestRunLocator): Promise<string[]> {
+        return this._getTargetTestRun(testRunId).warningLog.messages;
+    }
+
+    public async addRequestEventListeners ( { hookId, hookClassName, rules }: AddRequestEventListenersArguments): Promise<void> {
+        return await this.proxy.call(this.addRequestEventListeners, { hookId, hookClassName, rules });
+    }
+
+    public async removeRequestEventListeners ({ rules }: RemoveRequestEventListenersArguments): Promise<void> {
+        return await this.proxy.call(this.removeRequestEventListeners, { rules });
+    }
+
+    public async initializeTestRunData ({ testRunId, testId, browser }: InitializeTestRunDataArguments): Promise<void> {
+        const test = this.state.units[testId] as Test;
+
+        this._initializeTestRunProxy(testRunId, test, browser);
+        this._initializeFixtureCtx(test);
+    }
+
+    public enableDebugForNonDebugCommands (): void {
+        TestController.enableDebugForNonDebugCommands();
+    }
+
+    public disableDebugForNonDebugCommands (): void {
+        TestController.disableDebugForNonDebugCommands();
+    }
+
+    public async getAssertionActualValue ({ testRunId, commandId }: CommandLocator): Promise<unknown> {
+        return this._getTargetTestRun(testRunId).getAssertionActualValue(commandId);
+    }
+
+    public async executeRoleInitFn ({ testRunId, roleId }: ExecuteRoleInitFnArguments): Promise<unknown> {
+        const role         = this._getTargetRole(roleId);
+        const testRunProxy = this._getTargetTestRun(testRunId);
+
+        return (role._initFn as Function)(testRunProxy);
+    }
+
+    public async getCtx ({ testRunId }: TestRunLocator): Promise<object> {
+        return this._getTargetTestRun(testRunId).ctx;
+    }
+
+    public async getFixtureCtx ({ testRunId }: TestRunLocator): Promise<object> {
+        return this._getTargetTestRun(testRunId).fixtureCtx;
+    }
+
+    public async setCtx ({ testRunId, value }: SetCtxArguments): Promise<void> {
+        this._getTargetTestRun(testRunId).ctx = value;
+    }
+
+    public async setFixtureCtx ({ testRunId, value }: SetCtxArguments): Promise<void> {
+        this._getTargetTestRun(testRunId).fixtureCtx = value;
+    }
+
+    public onRoleAppeared (role: Role): void {
+        if (this.state.roles.has(role.id))
+            return;
+
+        this.state.roles.set(role.id, role);
+    }
+
+    public async updateRoleProperty ({ roleId, name, value }: UpdateRolePropertyArguments): Promise<void> {
+        const role = this._getTargetRole(roleId);
+
+        // @ts-ignore
+        role[name] = value;
+    }
+
+    public async executeJsExpression ({ expression, testRunId, options }: ExecuteJsExpressionArguments): Promise<unknown> {
+        const testRunProxy = this._getTargetTestRun(testRunId);
+
+        return executeJsExpression(expression, testRunProxy, options);
+    }
+
+    public async executeAsyncJsExpression ({ expression, testRunId, callsite }: ExecuteAsyncJsExpressionArguments): Promise<unknown> {
+        const testRunProxy = this._getTargetTestRun(testRunId);
+
+        return executeAsyncJsExpression(expression, testRunProxy, callsite, async (err: UncaughtTestCafeErrorInCustomScript | UncaughtErrorInCustomScript) => {
+            if (err instanceof UncaughtTestCafeErrorInCustomScript === false)
+                return;
+
+            const targetError = err as UncaughtTestCafeErrorInCustomScript;
+
+            if (!shouldRenderHtmlWithoutStack(targetError))
+                return;
+
+            testRunProxy.restoreOriginCallsiteForError(targetError);
+
+            // @ts-ignore
+            err.errCallsite = renderHtmlWithoutStack(targetError);
+        });
+    }
+
+    public async executeAssertionFn ({ testRunId, commandId }: CommandLocator): Promise<unknown> {
+        return this
+            ._getTargetTestRun(testRunId)
+            .executeAssertionFn(commandId);
+    }
+
+    public async addUnexpectedError ({ type, message }: AddUnexpectedErrorArguments): Promise<void> {
+        return this.proxy.call(this.addUnexpectedError, { type, message });
     }
 }
 

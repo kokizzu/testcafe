@@ -37,7 +37,7 @@ export default {
         runtimeInfo.windowDescriptors[runtimeInfo.activeWindowId] = windowDescriptor;
     },
 
-    _getConfig () {
+    getConfig () {
         throw new Error('Not implemented');
     },
 
@@ -50,7 +50,7 @@ export default {
     },
 
     async isValidBrowserName (browserName) {
-        const config      = await this._getConfig(browserName);
+        const config      = await this.getConfig(browserName);
         const browserInfo = await getBrowserInfo(config.path || this._getBrowserName());
 
         return !!browserInfo;
@@ -64,7 +64,7 @@ export default {
         if (browserId)
             return this.openedBrowsers[browserId].config.headless;
 
-        const config = this._getConfig(browserName);
+        const config = this.getConfig(browserName);
 
         return !!config.headless;
     },
@@ -77,7 +77,7 @@ export default {
             left:   0,
             top:    0,
             right:  viewportWidth,
-            bottom: viewportHeight
+            bottom: viewportHeight,
         };
     },
 
@@ -99,5 +99,26 @@ export default {
         const maximumSize = getMaximizedHeadlessWindowSize();
 
         await this.resizeWindow(browserId, maximumSize.width, maximumSize.height, maximumSize.width, maximumSize.height);
-    }
+    },
+
+    async executeClientFunction (browserId, command, callsite) {
+        const runtimeInfo   = this.openedBrowsers[browserId];
+        const browserClient = this._getBrowserProtocolClient(runtimeInfo);
+
+        return browserClient.executeClientFunction(command, callsite);
+    },
+
+    async switchToIframe (browserId) {
+        const runtimeInfo   = this.openedBrowsers[browserId];
+        const browserClient = this._getBrowserProtocolClient(runtimeInfo);
+
+        return browserClient.switchToIframe();
+    },
+
+    async switchToMainWindow (browserId) {
+        const runtimeInfo   = this.openedBrowsers[browserId];
+        const browserClient = this._getBrowserProtocolClient(runtimeInfo);
+
+        return browserClient.switchToMainWindow();
+    },
 };

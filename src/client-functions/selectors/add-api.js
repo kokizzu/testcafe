@@ -11,6 +11,7 @@ import selectorTextFilter from './selector-text-filter';
 import selectorAttributeFilter from './selector-attribute-filter';
 import prepareApiFnArgs from './prepare-api-args';
 import { getCallsiteId } from '../../utils/callsite';
+import selectorApiExecutionMode from '../selector-api-execution-mode';
 
 const VISIBLE_PROP_NAME       = 'visible';
 const SNAPSHOT_PROP_PRIMITIVE = `[object ${ReExecutablePromise.name}]`;
@@ -73,7 +74,7 @@ const expandSelectorResults = (new ClientFunctionBuilder((selector, populateDeri
 
 async function getSnapshot (getSelector, callsite, SelectorBuilder, getVisibleValueMode) {
     let node       = null;
-    const selector = new SelectorBuilder(getSelector(), { getVisibleValueMode, needError: true }, { instantiation: 'Selector' }).getFunction();
+    const selector = new SelectorBuilder(getSelector(), { getVisibleValueMode, needError: true }, { instantiation: 'Selector' }, callsite).getFunction();
 
     try {
         node = await selector();
@@ -81,6 +82,24 @@ async function getSnapshot (getSelector, callsite, SelectorBuilder, getVisibleVa
 
     catch (err) {
         err.callsite = callsite;
+
+        throw err;
+    }
+
+    return node;
+}
+
+function getSnapshotSync (getSelector, callsite, SelectorBuilder, getVisibleValueMode) {
+    let node       = null;
+    const selector = new SelectorBuilder(getSelector(), { getVisibleValueMode, needError: true }, { instantiation: 'Selector' }, callsite).getFunction();
+
+    try {
+        node = selector();
+    }
+
+    catch (err) {
+        err.callsite = callsite;
+
         throw err;
     }
 
@@ -88,21 +107,21 @@ async function getSnapshot (getSelector, callsite, SelectorBuilder, getVisibleVa
 }
 
 function assertAddCustomDOMPropertiesOptions (properties) {
-    assertType(is.nonNullObject, 'addCustomDOMProperties', '"addCustomDOMProperties" option', properties);
+    assertType(is.nonNullObject, 'addCustomDOMProperties', 'The "addCustomDOMProperties" option', properties);
 
     Object.keys(properties).forEach(prop => {
-        assertType(is.function, 'addCustomDOMProperties', `Custom DOM properties method '${prop}'`, properties[prop]);
+        assertType(is.function, 'addCustomDOMProperties', `The custom DOM properties method '${prop}'`, properties[prop]);
     });
 }
 
 function assertAddCustomMethods (properties, opts) {
-    assertType(is.nonNullObject, 'addCustomMethods', '"addCustomMethods" option', properties);
+    assertType(is.nonNullObject, 'addCustomMethods', 'The "addCustomMethods" option', properties);
 
     if (opts !== void 0)
-        assertType(is.nonNullObject, 'addCustomMethods', '"addCustomMethods" option', opts);
+        assertType(is.nonNullObject, 'addCustomMethods', 'The "addCustomMethods" option', opts);
 
     Object.keys(properties).forEach(prop => {
-        assertType(is.function, 'addCustomMethods', `Custom method '${prop}'`, properties[prop]);
+        assertType(is.function, 'addCustomMethods', `The custom method '${prop}'`, properties[prop]);
     });
 }
 
@@ -142,6 +161,9 @@ function addSnapshotProperties (obj, getSelector, SelectorBuilder, properties, o
             get: () => {
                 const callsite = getCallsiteForMethod('get');
 
+                if (selectorApiExecutionMode.isSync)
+                    return getSnapshotSync(getSelector, callsite, SelectorBuilder)[prop];
+
                 const propertyPromise = ReExecutablePromise.fromFn(async () => {
                     const snapshot = await getSnapshot(getSelector, callsite, SelectorBuilder);
 
@@ -163,7 +185,7 @@ function addSnapshotProperties (obj, getSelector, SelectorBuilder, properties, o
                 };
 
                 return propertyPromise;
-            }
+            },
         });
     });
 }
@@ -173,12 +195,18 @@ function addVisibleProperty ({ obj, getSelector, SelectorBuilder }) {
         get: () => {
             const callsite = getCallsiteForMethod('get');
 
+            if (selectorApiExecutionMode.isSync) {
+                const snapshot = getSnapshotSync(getSelector, callsite, SelectorBuilder, true);
+
+                return !!snapshot && snapshot[VISIBLE_PROP_NAME];
+            }
+
             return ReExecutablePromise.fromFn(async () => {
                 const snapshot = await getSnapshot(getSelector, callsite, SelectorBuilder, true);
 
                 return !!snapshot && snapshot[VISIBLE_PROP_NAME];
             });
-        }
+        },
     });
 }
 
@@ -190,7 +218,7 @@ export function addCustomMethods (obj, getSelector, SelectorBuilder, customMetho
 
         const dependencies = {
             customMethod: method,
-            selector:     getSelector()
+            selector:     getSelector(),
         };
 
         const callsiteNames = { instantiation: prop };
@@ -210,7 +238,7 @@ export function addCustomMethods (obj, getSelector, SelectorBuilder, customMetho
 
                 const additionalDependencies = {
                     args,
-                    customMethod: method
+                    customMethod: method,
                 };
 
                 return createDerivativeSelectorWithFilter({ getSelector, SelectorBuilder, selectorFn, apiFn, filter, additionalDependencies });
@@ -249,6 +277,12 @@ function addSnapshotPropertyShorthands ({ obj, getSelector, SelectorBuilder, cus
     obj.getStyleProperty = prop => {
         const callsite = getCallsiteForMethod('getStyleProperty');
 
+        if (selectorApiExecutionMode.isSync) {
+            const snapshot = getSnapshotSync(getSelector, callsite, SelectorBuilder);
+
+            return snapshot.style ? snapshot.style[prop] : void 0;
+        }
+
         return ReExecutablePromise.fromFn(async () => {
             const snapshot = await getSnapshot(getSelector, callsite, SelectorBuilder);
 
@@ -258,6 +292,12 @@ function addSnapshotPropertyShorthands ({ obj, getSelector, SelectorBuilder, cus
 
     obj.getAttribute = attrName => {
         const callsite = getCallsiteForMethod('getAttribute');
+
+        if (selectorApiExecutionMode.isSync) {
+            const snapshot = getSnapshotSync(getSelector, callsite, SelectorBuilder);
+
+            return snapshot.attributes ? snapshot.attributes[attrName] : void 0;
+        }
 
         return ReExecutablePromise.fromFn(async () => {
             const snapshot = await getSnapshot(getSelector, callsite, SelectorBuilder);
@@ -269,6 +309,12 @@ function addSnapshotPropertyShorthands ({ obj, getSelector, SelectorBuilder, cus
     obj.hasAttribute = attrName => {
         const callsite = getCallsiteForMethod('hasAttribute');
 
+        if (selectorApiExecutionMode.isSync) {
+            const snapshot = getSnapshotSync(getSelector, callsite, SelectorBuilder);
+
+            return snapshot.attributes ? snapshot.attributes.hasOwnProperty(attrName) : false;
+        }
+
         return ReExecutablePromise.fromFn(async () => {
             const snapshot = await getSnapshot(getSelector, callsite, SelectorBuilder);
 
@@ -278,6 +324,12 @@ function addSnapshotPropertyShorthands ({ obj, getSelector, SelectorBuilder, cus
 
     obj.getBoundingClientRectProperty = prop => {
         const callsite = getCallsiteForMethod('getBoundingClientRectProperty');
+
+        if (selectorApiExecutionMode.isSync) {
+            const snapshot = getSnapshotSync(getSelector, callsite, SelectorBuilder);
+
+            return snapshot.boundingClientRect ? snapshot.boundingClientRect[prop] : void 0;
+        }
 
         return ReExecutablePromise.fromFn(async () => {
             const snapshot = await getSnapshot(getSelector, callsite, SelectorBuilder);
@@ -289,10 +341,16 @@ function addSnapshotPropertyShorthands ({ obj, getSelector, SelectorBuilder, cus
     obj.hasClass = name => {
         const callsite = getCallsiteForMethod('hasClass');
 
+        if (selectorApiExecutionMode.isSync) {
+            const snapshot = getSnapshotSync(getSelector, callsite, SelectorBuilder);
+
+            return snapshot.classNames ? snapshot.classNames.includes(name) : false;
+        }
+
         return ReExecutablePromise.fromFn(async () => {
             const snapshot = await getSnapshot(getSelector, callsite, SelectorBuilder);
 
-            return snapshot.classNames ? snapshot.classNames.indexOf(name) > -1 : false;
+            return snapshot.classNames ? snapshot.classNames.includes(name) : false;
         });
     };
 }
@@ -314,21 +372,44 @@ function createCounter (getSelector, SelectorBuilder) {
     };
 }
 
+function createCounterSync (getSelector, SelectorBuilder) {
+    const builder  = new SelectorBuilder(getSelector(), { counterMode: true }, { instantiation: 'Selector' });
+    const counter  = builder.getFunction();
+    const callsite = getCallsiteForMethod('get');
+
+    return () => {
+        try {
+            return counter();
+        }
+
+        catch (err) {
+            err.callsite = callsite;
+            throw err;
+        }
+    };
+}
+
 function addCounterProperties ({ obj, getSelector, SelectorBuilder }) {
     Object.defineProperty(obj, 'count', {
         get: () => {
+            if (selectorApiExecutionMode.isSync)
+                return createCounterSync(getSelector, SelectorBuilder)();
+
             const counter = createCounter(getSelector, SelectorBuilder);
 
             return ReExecutablePromise.fromFn(() => counter());
-        }
+        },
     });
 
     Object.defineProperty(obj, 'exists', {
         get: () => {
+            if (selectorApiExecutionMode.isSync)
+                return createCounterSync(getSelector, SelectorBuilder)() > 0;
+
             const counter = createCounter(getSelector, SelectorBuilder);
 
             return ReExecutablePromise.fromFn(async () => await counter() > 0);
-        }
+        },
     });
 }
 
@@ -352,7 +433,7 @@ function createDerivativeSelectorWithFilter ({ getSelector, SelectorBuilder, sel
     let dependencies = {
         selector:    collectionModeSelectorBuilder.getFunction(),
         filter:      filter,
-        filterNodes: filterNodes
+        filterNodes: filterNodes,
     };
 
     const { boundTestRun, timeout, visibilityCheck, apiFnChain } = collectionModeSelectorBuilder.options;
@@ -367,7 +448,7 @@ function createDerivativeSelectorWithFilter ({ getSelector, SelectorBuilder, sel
         timeout,
         visibilityCheck,
         apiFnChain,
-        apiFn
+        apiFn,
     }, { instantiation: 'Selector' });
 
     return builder.getFunction();
@@ -389,7 +470,7 @@ function addFilterMethods (options) {
     const { obj, getSelector, SelectorBuilder } = options;
 
     obj.nth = index => {
-        assertType(is.number, 'nth', '"index" argument', index);
+        assertType(is.number, 'nth', 'The "index" argument', index);
 
         const apiFn   = prepareApiFnArgs('nth', index);
         const builder = new SelectorBuilder(getSelector(), { index, apiFn }, { instantiation: 'Selector' });
@@ -398,7 +479,7 @@ function addFilterMethods (options) {
     };
 
     obj.withText = text => {
-        assertType([is.string, is.regExp], 'withText', '"text" argument', text);
+        assertType([is.string, is.regExp], 'withText', 'The "text" argument', text);
 
         const apiFn = prepareApiFnArgs('withText', text);
 
@@ -421,7 +502,7 @@ function addFilterMethods (options) {
     };
 
     obj.withExactText = text => {
-        assertType(is.string, 'withExactText', '"text" argument', text);
+        assertType(is.string, 'withExactText', 'The "text" argument', text);
 
         const selectorFn = () => {
             /* eslint-disable no-undef */
@@ -441,14 +522,14 @@ function addFilterMethods (options) {
     };
 
     obj.withAttribute = (attrName, attrValue) => {
-        assertType([is.string, is.regExp], 'withAttribute', '"attrName" argument', attrName);
+        assertType([is.string, is.regExp], 'withAttribute', 'The "attrName" argument', attrName);
 
         const apiFn = prepareApiFnArgs('withAttribute', attrName, attrValue);
 
         attrName = ensureRegExpContext(attrName);
 
         if (attrValue !== void 0) {
-            assertType([is.string, is.regExp], 'withAttribute', '"attrValue" argument', attrValue);
+            assertType([is.string, is.regExp], 'withAttribute', 'The "attrValue" argument', attrValue);
             attrValue = ensureRegExpContext(attrValue);
         }
 
@@ -465,14 +546,14 @@ function addFilterMethods (options) {
 
         const args = getDerivativeSelectorArgs(options, selectorFn, apiFn, filterByAttr, {
             attrName,
-            attrValue
+            attrValue,
         });
 
         return createDerivativeSelectorWithFilter(args);
     };
 
     obj.filter = (filter, dependencies) => {
-        assertType([is.string, is.function], 'filter', '"filter" argument', filter);
+        assertType([is.string, is.function], 'filter', 'The "filter" argument', filter);
 
         const apiFn = prepareApiFnArgs('filter', filter);
 
@@ -529,7 +610,7 @@ function addCustomMethodsMethod ({ obj, getSelector, SelectorBuilder }) {
         Object.keys(methods).forEach(methodName => {
             customMethods[methodName] = {
                 method:         methods[methodName],
-                returnDOMNodes: opts && !!opts.returnDOMNodes
+                returnDOMNodes: opts && !!opts.returnDOMNodes,
             };
         });
 
@@ -544,7 +625,7 @@ function addHierarchicalSelectors (options) {
 
     // Find
     obj.find = (filter, dependencies) => {
-        assertType([is.string, is.function], 'find', '"filter" argument', filter);
+        assertType([is.string, is.function], 'find', 'The "filter" argument', filter);
 
         const apiFn = prepareApiFnArgs('find', filter);
 
@@ -588,7 +669,7 @@ function addHierarchicalSelectors (options) {
     // Parent
     obj.parent = (filter, dependencies) => {
         if (filter !== void 0)
-            assertType([is.string, is.function, is.number], 'parent', '"filter" argument', filter);
+            assertType([is.string, is.function, is.number], 'parent', 'The "filter" argument', filter);
 
         const apiFn = prepareApiFnArgs('parent', filter);
 
@@ -615,7 +696,7 @@ function addHierarchicalSelectors (options) {
     // Child
     obj.child = (filter, dependencies) => {
         if (filter !== void 0)
-            assertType([is.string, is.function, is.number], 'child', '"filter" argument', filter);
+            assertType([is.string, is.function, is.number], 'child', 'The "filter" argument', filter);
 
         const apiFn = prepareApiFnArgs('child', filter);
 
@@ -647,7 +728,7 @@ function addHierarchicalSelectors (options) {
     // Sibling
     obj.sibling = (filter, dependencies) => {
         if (filter !== void 0)
-            assertType([is.string, is.function, is.number], 'sibling', '"filter" argument', filter);
+            assertType([is.string, is.function, is.number], 'sibling', 'The "filter" argument', filter);
 
         const apiFn = prepareApiFnArgs('sibling', filter);
 
@@ -684,7 +765,7 @@ function addHierarchicalSelectors (options) {
     // Next sibling
     obj.nextSibling = (filter, dependencies) => {
         if (filter !== void 0)
-            assertType([is.string, is.function, is.number], 'nextSibling', '"filter" argument', filter);
+            assertType([is.string, is.function, is.number], 'nextSibling', 'The "filter" argument', filter);
 
         const apiFn = prepareApiFnArgs('nextSibling', filter);
 
@@ -725,7 +806,7 @@ function addHierarchicalSelectors (options) {
     // Prev sibling
     obj.prevSibling = (filter, dependencies) => {
         if (filter !== void 0)
-            assertType([is.string, is.function, is.number], 'prevSibling', '"filter" argument', filter);
+            assertType([is.string, is.function, is.number], 'prevSibling', 'The "filter" argument', filter);
 
         const apiFn = prepareApiFnArgs('prevSibling', filter);
 
@@ -780,12 +861,15 @@ function addHierarchicalSelectors (options) {
     };
 }
 
-export function addAPI (selector, getSelector, SelectorBuilder, customDOMProperties, customMethods, observedCallsites) {
+export function addAPI (selector, getSelector, SelectorBuilder, customDOMProperties, customMethods, observedCallsites, skipSnapshotProperties) {
     const options = { obj: selector, getSelector, SelectorBuilder, customDOMProperties, customMethods, observedCallsites };
 
     addFilterMethods(options);
     addHierarchicalSelectors(options);
-    addSnapshotPropertyShorthands(options);
+
+    if (!skipSnapshotProperties)
+        addSnapshotPropertyShorthands(options);
+
     addCustomDOMPropertiesMethod(options);
     addCustomMethodsMethod(options);
     addCounterProperties(options);

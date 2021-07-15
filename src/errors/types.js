@@ -83,7 +83,7 @@ export const TEST_RUN_ERRORS = {
     multipleWindowsModeIsDisabledError:                    'E80',
     multipleWindowsModeIsNotSupportedInRemoteBrowserError: 'E81',
     cannotCloseWindowWithoutParent:                        'E82',
-    cannotRestoreChildWindowError:                         'E83'
+    cannotRestoreChildWindowError:                         'E83',
 };
 
 export const RUNTIME_ERRORS = {
@@ -149,5 +149,10 @@ export const RUNTIME_ERRORS = {
     cannotCustomizeSpecifiedCompilers:                  'E1061',
     cannotEnableRetryTestPagesOption:                   'E1062',
     browserConnectionError:                             'E1063',
-    testRunRequestInDisconnectedBrowser:                'E1064'
+    testRunRequestInDisconnectedBrowser:                'E1064',
+    invalidQuarantineOption:                            'E1065',
+    invalidQuarantineParametersRatio:                   'E1066',
+    invalidAttemptLimitValue:                           'E1067',
+    invalidSuccessThresholdValue:                       'E1068',
+    cannotSetConcurrencyWithCDPPort:                    'E1069',
 };

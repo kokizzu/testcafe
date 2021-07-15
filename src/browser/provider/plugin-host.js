@@ -120,7 +120,7 @@ export default class BrowserProviderPluginHost {
             hasGetVideoFrameData:           this.hasOwnProperty('getVideoFrameData'),
             hasCanResizeWindowToDimensions: this.hasOwnProperty('canResizeWindowToDimensions'),
             hasMaximizeWindow:              this.hasOwnProperty('maximizeWindow'),
-            hasChromelessScreenshots:       false
+            hasChromelessScreenshots:       false,
         };
     }
 
@@ -148,5 +148,9 @@ export default class BrowserProviderPluginHost {
 
     async reportJobResult (/*browserId, status, data*/) {
         return;
+    }
+
+    getConfig (value) {
+        return value;
     }
 }

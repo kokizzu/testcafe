@@ -10,7 +10,7 @@ describe('[API] t.typeText()', function () {
     it('Should validate options', function () {
         return runTests('./testcafe-fixtures/type-test.js', 'Incorrect action options', {
             shouldFail: true,
-            only:       'chrome'
+            only:       'chrome',
         })
             .catch(function (errs) {
                 expect(errs[0]).to.contains('The "replace" option is expected to be a boolean value, but it was object.');
@@ -21,7 +21,7 @@ describe('[API] t.typeText()', function () {
     it('Should validate text', function () {
         return runTests('./testcafe-fixtures/type-test.js', 'Incorrect action text', {
             shouldFail: true,
-            only:       'chrome'
+            only:       'chrome',
         })
             .catch(function (errs) {
                 expect(errs[0]).to.contains('The "text" argument is expected to be a non-empty string, but it was number.');
@@ -32,13 +32,13 @@ describe('[API] t.typeText()', function () {
     it('Should validate selector', function () {
         return runTests('./testcafe-fixtures/type-test.js', 'Incorrect action selector', {
             shouldFail: true,
-            only:       'chrome'
+            only:       'chrome',
         })
             .catch(function (errs) {
                 expect(errs[0]).to.contains(
-                    'Action "selector" argument error:  Selector is expected to be initialized with a ' +
-                    'function, CSS selector string, another Selector, node snapshot or a Promise returned ' +
-                    'by a Selector, but number was passed.'
+                    'Action "selector" argument error:  Cannot initialize a Selector because Selector is number, ' +
+                    'and not one of the following: a CSS selector string, a Selector object, a node snapshot, ' +
+                    'a function, or a Promise returned by a Selector.'
                 );
                 expect(errs[0]).to.contains('> 19 |    await t.typeText(NaN, \'a\');');
             });

@@ -11,65 +11,11 @@ import WarningLog from '../notifications/warning-log';
 import FixtureHookController from './fixture-hook-controller';
 import { Dictionary } from '../configuration/interfaces';
 import { ActionEventArg, TestRunControllerInit } from './interfaces';
-import TestRunErrorFormattableAdapter from '../errors/test-run/formattable-adapter';
 import CompilerService from '../services/compiler/host';
+import { Quarantine } from '../utils/get-options/quarantine';
 
-const QUARANTINE_THRESHOLD = 3;
 const DISCONNECT_THRESHOLD = 3;
 
-interface AttemptResult {
-    failedTimes: number;
-    passedTimes: number;
-}
-
-class Quarantine {
-    public attempts: TestRunErrorFormattableAdapter[][];
-
-    public constructor () {
-        this.attempts = [];
-    }
-
-    public getFailedAttempts (): TestRunErrorFormattableAdapter[][] {
-        return this.attempts.filter(errors => !!errors.length);
-    }
-
-    public getPassedAttempts (): TestRunErrorFormattableAdapter[][] {
-        return this.attempts.filter(errors => errors.length === 0);
-    }
-
-    public getNextAttemptNumber (): number {
-        return this.attempts.length + 1;
-    }
-
-    public isThresholdReached (extraErrors?: TestRunErrorFormattableAdapter[]): boolean {
-        const { failedTimes, passedTimes } = this._getAttemptsResult(extraErrors);
-
-        const failedThresholdReached = failedTimes >= QUARANTINE_THRESHOLD;
-        const passedThresholdReached = passedTimes >= QUARANTINE_THRESHOLD;
-
-        return failedThresholdReached || passedThresholdReached;
-    }
-
-    public isFirstAttemptSuccessful (extraErrors: TestRunErrorFormattableAdapter[]): boolean {
-        const { failedTimes, passedTimes } = this._getAttemptsResult(extraErrors);
-
-        return failedTimes === 0 && passedTimes > 0;
-    }
-
-    private _getAttemptsResult (extraErrors?: TestRunErrorFormattableAdapter[]): AttemptResult {
-        let failedTimes = this.getFailedAttempts().length;
-        let passedTimes = this.getPassedAttempts().length;
-
-        if (extraErrors) {
-            if (extraErrors.length)
-                failedTimes += extraErrors.length;
-            else
-                passedTimes += 1;
-        }
-
-        return { failedTimes, passedTimes };
-    }
-}
 
 export default class TestRunController extends AsyncEventEmitter {
     private readonly _quarantine: null | Quarantine;
@@ -94,7 +40,7 @@ export default class TestRunController extends AsyncEventEmitter {
         warningLog,
         fixtureHookController,
         opts,
-        compilerService
+        compilerService,
     }: TestRunControllerInit) {
         super();
 
@@ -133,13 +79,21 @@ export default class TestRunController extends AsyncEventEmitter {
             globalWarningLog:  this._warningLog,
             opts:              this._opts,
             compilerService:   this.compilerService,
-            screenshotCapturer
+            screenshotCapturer,
         });
+
+        await this.testRun.initialize();
 
         this._screenshots.addTestRun(this.test, this.testRun);
 
         if (this.testRun.addQuarantineInfo)
             this.testRun.addQuarantineInfo(this._quarantine);
+
+        if (this._quarantine) {
+            const { successThreshold, attemptLimit } = this._opts.quarantineMode as QuarantineOptionValue;
+
+            this._quarantine.setCustomParameters(attemptLimit, successThreshold);
+        }
 
         if (!this._quarantine || this._isFirstQuarantineAttempt()) {
             await this.emit('test-run-create', {
@@ -271,6 +225,7 @@ export default class TestRunController extends AsyncEventEmitter {
 
         if (this.test.skip || !hookOk) {
             await this.emit('test-run-start');
+            await this.emit('test-run-before-done');
             await this._emitTestRunDone();
 
             return null;

@@ -29,7 +29,7 @@ describe('Client scripts', () => {
                 expect.fail('Should throw the error');
             })
             .catch(e => {
-                expect(e.message).eql('Specify the JavaScript file path, module name or script content to inject a client script.');
+                expect(e.message).eql('Initialize your client script with one of the following: a JavaScript script, a JavaScript file path, or the name of a JavaScript module.');
             });
     });
 
@@ -133,7 +133,7 @@ describe('Client scripts', () => {
         it('Initializer', () => {
             const script = new ClientScript( {
                 page:    'http://example.com',
-                content: testScriptContent
+                content: testScriptContent,
             });
 
             return script.load()
@@ -152,7 +152,7 @@ describe('Client scripts', () => {
                 .then(() => {
                     expect.fail('Should throw the error');
                 }).catch(e => {
-                    expect(e.message).eql('You cannot combine the file path, module name and script content when you specify a client script to inject.');
+                    expect(e.message).eql('Client scripts can only have one initializer: JavaScript code, a JavaScript file path, or the name of a JavaScript module.');
                 });
         });
 
@@ -164,7 +164,7 @@ describe('Client scripts', () => {
                 .then(() => {
                     expect.fail('Should throw the error');
                 }).catch(e => {
-                    expect(e.message).eql('You cannot combine the file path, module name and script content when you specify a client script to inject.');
+                    expect(e.message).eql('Client scripts can only have one initializer: JavaScript code, a JavaScript file path, or the name of a JavaScript module.');
                 });
         });
 
@@ -175,7 +175,7 @@ describe('Client scripts', () => {
                 .then(() => {
                     expect.fail('Should throw the error');
                 }).catch(e => {
-                    expect(e.message).eql('You cannot combine the file path, module name and script content when you specify a client script to inject.');
+                    expect(e.message).eql('Client scripts can only have one initializer: JavaScript code, a JavaScript file path, or the name of a JavaScript module.');
                 });
         });
     });
@@ -194,7 +194,7 @@ describe('Client scripts', () => {
     it('Should correct non-unique urls', () => {
         const scripts = [
             { module: testModuleName },
-            { module: testModuleName }
+            { module: testModuleName },
         ];
 
         return loadClientScripts(scripts, testBasePath)
@@ -270,7 +270,7 @@ describe('Client scripts', () => {
             const scripts = [
                 { content: '' },
                 { content: '123' },
-                { content: '' }
+                { content: '' },
             ];
 
             return loadClientScripts(scripts)

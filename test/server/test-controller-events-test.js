@@ -2,47 +2,36 @@ const { expect }                     = require('chai');
 const { noop }                       = require('lodash');
 const AsyncEventEmitter              = require('../../lib/utils/async-event-emitter');
 const delay                          = require('../../lib/utils/delay');
-const TestRun                        = require('../../lib/test-run');
 const TestController                 = require('../../lib/api/test-controller');
 const Task                           = require('../../lib/runner/task');
 const BrowserJob                     = require('../../lib/runner/browser-job');
 const Reporter                       = require('../../lib/reporter');
 const { Role }                       = require('../../lib/api/exportable-lib');
 const TestRunErrorFormattableAdapter = require('../../lib/errors/test-run/formattable-adapter');
+const BaseTestRunMock                = require('./helpers/base-test-run-mock');
 
-class TestRunMock extends TestRun {
+class TestRunMock extends BaseTestRunMock {
     constructor () {
         super({
-            test:               { id: 'test-id', name: 'test-name', fixture: { path: 'dummy', id: 'fixture-id', name: 'fixture-name' } },
-            browserConnection:  {},
-            screenshotCapturer: {},
-            globalWarningLog:   { addPlainMessage: noop },
-            opts:               {}
+            test:              { id: 'test-id', name: 'test-name', fixture: { path: 'dummy', id: 'fixture-id', name: 'fixture-name' } },
+            globalWarningLog:  { addPlainMessage: noop },
+            browserConnection: { activeWindowId: 'activeWindowId' },
         });
 
-        this.disableMultipleWindows = false;
-
-        this.browserConnection = {
-            browserInfo: {
-                alias: 'test-browser'
-            },
-            isHeadlessBrowser: () => false,
-            activeWindowId:    'id'
+        this.browser = {
+            alias:    'test-browser',
+            headless: false,
         };
-    }
 
-    _addInjectables () {
-    }
-
-    _initRequestHooks () {
-    }
-
-    get id () {
-        return 'test-run-id';
+        this.disableMultipleWindows = false;
     }
 
     executeCommand () {
         return delay(10);
+    }
+
+    get id () {
+        return 'test-run-id';
     }
 }
 
@@ -73,14 +62,14 @@ const options = {
     modifiers: {
         alt:   true,
         ctrl:  true,
-        shift: true
+        shift: true,
     },
     offsetX:            1,
     offsetY:            2,
     destinationOffsetX: 3,
     speed:              1,
     replace:            true,
-    paste:              true
+    paste:              true,
 };
 
 const actionsWithoutOptions = {
@@ -97,7 +86,7 @@ const actionsWithoutOptions = {
     pressKey:                ['enter'],
     takeScreenshot:          [{ path: 'screenshotPath', fullPage: true }],
     takeElementScreenshot:   ['#target', 'screenshotPath'],
-    resizeWindowToFitDevice: ['Sony Xperia Z']
+    resizeWindowToFitDevice: ['Sony Xperia Z'],
 };
 
 const actions = {
@@ -158,7 +147,7 @@ describe('TestController action events', () => {
             screenshots:           null,
             warningLog:            null,
             fixtureHookController: null,
-            opts:                  { TestRunCtor: TestRunMock }
+            opts:                  { TestRunCtor: TestRunMock },
         });
 
         const testRunController = job._createTestRunController();
@@ -186,7 +175,7 @@ describe('TestController action events', () => {
                 const item = { testRunId, name, command, test, fixture, browser };
 
                 doneLog.push(item);
-            }
+            },
         }, task);
 
         // eval and expect has their functional tests
@@ -228,7 +217,7 @@ describe('TestController action events', () => {
                 errorAdapter   = err;
                 resultDuration = duration;
                 actionResult   = { name, command: command.type, err: err.errMsg };
-            }
+            },
         });
 
         testController.testRun.executeCommand = () => {
@@ -256,7 +245,7 @@ describe('TestController action events', () => {
         initializeReporter({
             async reportTestActionDone (name, { duration }) {
                 resultDuration = duration;
-            }
+            },
         });
 
         testController.testRun.executeCommand = () => {
@@ -278,7 +267,7 @@ describe('TestController action events', () => {
 
                 if (command.options)
                     log.push(command.options);
-            }
+            },
         }, task);
 
         const actionsKeys = Object.keys(actionsWithoutOptions);
@@ -300,7 +289,7 @@ describe('TestController action events', () => {
                     item.options = command.options;
 
                 doneLog.push(item);
-            }
+            },
         }, task);
 
         await testController.click('#target', { caretPos: 1, modifiers: { shift: true } });
@@ -318,25 +307,25 @@ describe('TestController action events', () => {
                 options: {
                     caretPos:  1,
                     modifiers: {
-                        shift: true
-                    }
-                }
+                        shift: true,
+                    },
+                },
             },
             { name: 'click' },
             {
                 name:    'resizeWindowToFitDevice',
                 options: {
-                    portraitOrientation: true
-                }
+                    portraitOrientation: true,
+                },
             },
             { name: 'resizeWindowToFitDevice' },
             {
                 name:    'eql',
                 options: {
-                    timeout: 500
-                }
+                    timeout: 500,
+                },
             },
-            { name: 'eql' }
+            { name: 'eql' },
         ];
 
         expect(doneLog).eql(expectedLog);

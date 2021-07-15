@@ -3,7 +3,7 @@ const ClientFunctionBuilder = lazyRequire('../../client-functions/client-functio
 const SelectorBuilder       = lazyRequire('../../client-functions/selectors/selector-builder');
 const role                  = lazyRequire('../../role');
 const createRequestLogger   = lazyRequire('../request-hooks/request-logger');
-const createRequestMock     = lazyRequire('../request-hooks/request-mock');
+const createRequestMock     = lazyRequire('../request-hooks/request-mock/create-request-mock');
 
 // NOTE: We can't use lazy require for RequestHook, because it will break base class detection for inherited classes
 let RequestHook = null;
@@ -36,7 +36,7 @@ function Selector (fn, options) {
 }
 
 Object.defineProperty(Role, 'anonymous', {
-    get: () => role.createAnonymousRole
+    get: () => role.createAnonymousRole,
 });
 
 export default {
@@ -62,5 +62,5 @@ export default {
             testControllerProxy = require('../test-controller/proxy');
 
         return testControllerProxy;
-    }
+    },
 };

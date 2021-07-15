@@ -3,7 +3,7 @@ import DriverStatus from '../../status';
 import {
     createReplicator,
     FunctionTransform,
-    ClientFunctionNodeTransform
+    ClientFunctionNodeTransform,
 } from './replicator';
 
 import evalFunction from './eval-function';
@@ -38,21 +38,19 @@ export default class ClientFunctionExecutor {
             .getResult()
             .then(result => new DriverStatus({
                 isCommandResult: true,
-                result:          this.replicator.encode(result)
+                result:          this.replicator.encode(result),
             }))
-            .catch(err => {
-                return new DriverStatus({
-                    isCommandResult: true,
-                    executionError:  err
-                });
-            });
+            .catch(err => new DriverStatus({
+                isCommandResult: true,
+                executionError:  err,
+            }));
     }
 
     //Overridable methods
     _createReplicator () {
         return createReplicator([
             new ClientFunctionNodeTransform(this.command.instantiationCallsiteName),
-            new FunctionTransform()
+            new FunctionTransform(),
         ]);
     }
 

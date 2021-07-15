@@ -48,9 +48,11 @@ export default {
     setNativeDialogHandler:     'set-native-dialog-handler',
     getNativeDialogHistory:     'get-native-dialog-history',
     getBrowserConsoleMessages:  'get-browser-console-messages',
+    getActiveElement:           'get-active-element',
     setTestSpeed:               'set-test-speed',
     setPageLoadTimeout:         'set-page-load-timeout',
     debug:                      'debug',
+    disableDebug:               'disable-debug',
     assertion:                  'assertion',
     useRole:                    'useRole',
     testDone:                   'test-done',
@@ -58,5 +60,5 @@ export default {
     executeExpression:          'execute-expression',
     executeAsyncExpression:     'execute-async-expression',
     unlockPage:                 'unlock-page',
-    recorder:                   'recorder'
+    recorder:                   'recorder',
 };

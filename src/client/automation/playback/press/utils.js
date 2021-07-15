@@ -2,7 +2,7 @@ import hammerhead from '../../deps/hammerhead';
 import {
     KEY_MAPS,
     domUtils,
-    arrayUtils
+    arrayUtils,
 } from '../../deps/testcafe-core';
 
 import isLetter from '../../utils/is-letter';
@@ -13,7 +13,7 @@ const browserUtils     = hammerhead.utils.browser;
 const focusBlurSandbox = hammerhead.eventSandbox.focusBlur;
 const Promise          = hammerhead.Promise;
 
-const { findDocument, isRadioButtonElement, getActiveElement } = domUtils;
+const { isRadioButtonElement, getActiveElement, getTabIndexAttributeIntValue } = domUtils;
 
 export function changeLetterCase (letter) {
     const isLowCase = letter === letter.toLowerCase();
@@ -143,9 +143,18 @@ function correctFocusableElement (elements, element, skipRadioGroups) {
     return checkedRadioButtonElementWithSameName || element;
 }
 
+function activeElementHasNegativeTabIndex (doc) {
+    const activeElement         = nativeMethods.documentActiveElementGetter.call(doc);
+    const activeElementTabIndex = activeElement && getTabIndexAttributeIntValue(activeElement);
+
+    return activeElement && activeElementTabIndex < 0;
+}
+
 export function getNextFocusableElement (element, reverse, skipRadioGroups) {
     const offset     = reverse ? -1 : 1;
-    let allFocusable = domUtils.getFocusableElements(findDocument(element), true);
+    const doc        = domUtils.getTopSameDomainWindow(window).document;
+    const sort       = !activeElementHasNegativeTabIndex(doc);
+    let allFocusable = domUtils.getFocusableElements(doc, sort);
 
     allFocusable = filterFocusableElements(allFocusable, element, skipRadioGroups);
 
@@ -153,8 +162,12 @@ export function getNextFocusableElement (element, reverse, skipRadioGroups) {
     const currentIndex         = arrayUtils.indexOf(allFocusable, element);
     const isLastElementFocused = reverse ? currentIndex === 0 : currentIndex === allFocusable.length - 1;
 
-    if (isLastElementFocused)
+    if (isLastElementFocused) {
+        if (!reverse && element.tabIndex < 0)
+            return arrayUtils.find(allFocusable, el => el.tabIndex === 0);
+
         return skipRadioGroups || !isRadioInput ? document.body : allFocusable[allFocusable.length - 1 - currentIndex];
+    }
 
     if (reverse && currentIndex === -1)
         return allFocusable[allFocusable.length - 1];

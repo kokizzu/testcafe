@@ -1,6 +1,6 @@
 const path       = require('path');
 const { expect } = require('chai');
-
+const delay      = require('../../../../lib/utils/delay');
 
 describe('Compiler service', () => {
     it('Should execute a basic test', async () => {
@@ -21,7 +21,7 @@ describe('Compiler service', () => {
                 ` 3 |test(\`Throw an error\`, async t => {` +
                 ` > 4 |    await t.click('#not-exists');` +
                 ` 5 |});` +
-                ` 6 |  at <anonymous> (${path.join(__dirname, 'testcafe-fixtures/error-test.js')}:4:13)`
+                ` 6 |  at <anonymous> (${path.join(__dirname, 'testcafe-fixtures/error-test.js')}:4:13)`,
             ])).to.be.true;
         }
     });
@@ -30,25 +30,33 @@ describe('Compiler service', () => {
         await runTests('testcafe-fixtures/client-function-in-assertions.js', 'ClientFunction in assertions');
     });
 
-    describe('Request Hooks', () => {
-        describe('Request Logger', () => {
-            it('Basic', async () => {
-                await runTests('../api/es-next/request-hooks/testcafe-fixtures/request-logger/api.js', 'API');
-            });
+    it('Should execute Selectors in sync mode', async () => {
+        await runTests('testcafe-fixtures/synchronous-selectors.js');
+    });
 
-            it('Log options', async () => {
-                await runTests('../api/es-next/request-hooks/testcafe-fixtures/request-logger/log-options.js', 'Log options');
-            });
+    it('debug', async () => {
+        let resolver = null;
+
+        const result = new Promise(resolve => {
+            resolver = resolve;
         });
 
-        it('Request Mock', async () => {
-            await runTests('../api/es-next/request-hooks/testcafe-fixtures/request-mock/basic.js');
-        });
+        runTests('testcafe-fixtures/debug.js')
+            .then(() => resolver());
 
-        describe('Request Hook', () => {
-            it('Change and remove response headers', async () => {
-                await runTests('../api/es-next/request-hooks/testcafe-fixtures/api/change-remove-response-headers.js');
-            });
-        });
+        setTimeout(async () => {
+            const client = global.testCafe.runner.compilerService.cdp;
+
+            await client.Debugger.resume();
+
+            await delay(1000);
+
+            await client.Debugger.resume();
+        }, 10000);
+
+
+        return result;
     });
 });
+
+

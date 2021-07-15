@@ -26,7 +26,7 @@ export default class FixtureHookController {
                 runningFixtureBeforeHook: false,
                 fixtureBeforeHookErr:     null,
                 pendingTestRunCount:      0,
-                fixtureCtx:               Object.create(null)
+                fixtureCtx:               Object.create(null),
             };
 
             fixtureMap.set(fixture, item);
@@ -72,7 +72,7 @@ export default class FixtureHookController {
                 item.runningFixtureBeforeHook = true;
 
                 try {
-                    await fixture.beforeFn(item.fixtureCtx);
+                    await (fixture.beforeFn as Function)(item.fixtureCtx);
                 }
                 catch (err) {
                     item.fixtureBeforeHookErr = processTestFnError(err);

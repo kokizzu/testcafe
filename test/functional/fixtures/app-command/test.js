@@ -6,16 +6,16 @@ describe('App command', function () {
     it('Should fail task if app fails', function () {
         return runTests('./testcafe-fixtures/app-command-test.js', 'Wait', {
             shouldFail: true,
-            appCommand: 'node test/functional/fixtures/app-command/failing-app.js'
+            appCommand: 'node test/functional/fixtures/app-command/failing-app.js',
         })
             .catch(function (err) {
-                expect(err.message).contains('Tested app failed with an error:\n\nError: Command failed');
+                expect(err.message).contains('The web application failed with the following error:\n\nError: Command failed');
             });
     });
 
     it('Should run app and close it once the tests complete', function () {
         return runTests('./testcafe-fixtures/app-command-test.js', 'Click div', {
-            appCommand: 'node test/functional/fixtures/app-command/normal-app.js'
+            appCommand: 'node test/functional/fixtures/app-command/normal-app.js',
         })
             .then(function () {
                 return delay(1000);

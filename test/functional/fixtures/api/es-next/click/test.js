@@ -28,7 +28,7 @@ describe('[API] t.click()', function () {
     it('Should validate options', function () {
         return runTests('./testcafe-fixtures/click-test.js', 'Incorrect action option', {
             shouldFail: true,
-            only:       'chrome'
+            only:       'chrome',
         })
             .catch(function (errs) {
                 expect(errs[0]).to.contains('The "offsetX" option is expected to be an integer, but it was -3.5.');
@@ -51,13 +51,12 @@ describe('[API] t.click()', function () {
     it('Should validate selector', function () {
         return runTests('./testcafe-fixtures/click-test.js', 'Incorrect action selector', {
             shouldFail: true,
-            only:       'chrome'
+            only:       'chrome',
         })
             .catch(function (errs) {
                 expect(errs[0]).to.contains(
-                    'Action "selector" argument error:  Selector is expected to be initialized with a ' +
-                    'function, CSS selector string, another Selector, node snapshot or a Promise returned ' +
-                    'by a Selector, but number was passed.'
+                    'Action "selector" argument error:  Cannot initialize a Selector because Selector is number, and not one of the ' +
+                    'following: a CSS selector string, a Selector object, a node snapshot, a function, or a Promise returned by a Selector.'
                 );
                 expect(errs[0]).to.contains(
                     '7 |    .page `http://localhost:3000/fixtures/api/es-next/click/pages/index.html`;' +
@@ -118,7 +117,7 @@ describe('[API] t.click()', function () {
 
         it('Should fail if try to click on an "option" element in a closed "select" element', function () {
             return runTests('./testcafe-fixtures/click-on-select-child-test.js', 'Click on an invisible "option" element', {
-                shouldFail: true
+                shouldFail: true,
             })
                 .catch(function (errs) {
                     expect(errs[0]).to.contains('The element that matches the specified selector is not visible.');

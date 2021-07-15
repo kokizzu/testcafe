@@ -12,8 +12,8 @@ const GENSYNC             = BABEL_MODULES_DIR + 'gensync'; // NOTE: @babel/parse
 const TESTCAFE_LIB        = join(__dirname, '../');
 const TESTCAFE_BIN        = join(__dirname, '../../bin');
 const TESTCAFE_SRC        = join(__dirname, '../../src');
-const TESTCAFE_HAMMERHEAD = `${sep}testcafe-hammerhead${sep}`;
-const SOURCE_MAP_SUPPORT  = `${sep}source-map-support${sep}`;
+const TESTCAFE_HAMMERHEAD = require.resolve('testcafe-hammerhead');
+const SOURCE_MAP_SUPPORT  = require.resolve('source-map-support');
 
 const INTERNAL_STARTS_WITH_PATH_SEGMENTS = [
     TESTCAFE_LIB,
@@ -23,12 +23,12 @@ const INTERNAL_STARTS_WITH_PATH_SEGMENTS = [
     REGENERATOR_RUNTIME,
     GENSYNC,
     BABEL_7,
-    INTERNAL_MODULES_PREFIX
+    INTERNAL_MODULES_PREFIX,
 ];
 
 const INTERNAL_INCLUDES_PATH_SEGMENTS = [
     SOURCE_MAP_SUPPORT,
-    TESTCAFE_HAMMERHEAD
+    TESTCAFE_HAMMERHEAD,
 ];
 
 function isInternalFile (filename: string = ''): boolean {

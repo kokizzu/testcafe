@@ -4,17 +4,23 @@ on:
   workflow_dispatch:
     inputs:
       sha:
-        desciption: "The test commit SHA or ref"
+        description: 'The test commit SHA or ref'
         required: true
-        default: "master"
+        default: 'master'
+      merged_sha:
+        description: 'The merge commit SHA' 
       deploy_run_id:
-        description: "The ID of a deployment workspace run with artifacts"
+        description: 'The ID of a deployment workspace run with artifacts'
+env:
+  NO_CACHE: ${{ secrets.NO_CACHE }}
+  
 jobs:  
   test:
     runs-on: ubuntu-latest
-    environment: CI
+    environment: test-functional
     env:
       DISPLAY: ':99.0'
+      RETRY_FAILED_TESTS: true
     steps:
       - uses: actions/github-script@v3
         with:
@@ -35,11 +41,11 @@ jobs:
           fluxbox >/dev/null 2>&1 &
       - uses: actions/checkout@v2
         with:
-          ref: ${{github.event.inputs.sha}}
+          ref: ${{github.event.inputs.merged_sha || github.event.inputs.sha}}
           
       - uses: actions/setup-node@v2
         with:
-          node-version: 10
+          node-version: 12
 
       - uses: actions/github-script@v3
         with:
@@ -73,6 +79,7 @@ jobs:
         run: |
           echo "::set-output name=dir::$(npm config get cache)"
       - uses: actions/cache@v2
+        if: ${{ !env.NO_CACHE }}
         with:
           path: ${{ steps.npm-cache-dir.outputs.dir }}
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -80,6 +87,7 @@ jobs:
             ${{ runner.os }}-node-
       - run: npm ci
       - run: npx gulp test-functional-local-compiler-service-run --steps-as-tasks
+        timeout-minutes: 60
       - uses: actions/github-script@v3
         with:
           script: |

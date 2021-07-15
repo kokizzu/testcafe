@@ -7,9 +7,9 @@ interface ScreenshotOptionValue {
     fullPage?: boolean;
 }
 
-interface CompilerOptions {
-    [key: string]: object;
+interface QuarantineOptionValue {
+    attemptLimit?: number;
+    successThreshold?: number;
 }
 
-type OptionValue = undefined | null | string | boolean | number | string[] | Function | { [key: string]: any } | ScreenshotOptionValue | CompilerOptions;
-
+type OptionValue = undefined | null | string | boolean | number | string[] | Function | { [key: string]: any } | ScreenshotOptionValue | QuarantineOptionValue | CompilerOptions;

@@ -12,9 +12,10 @@ import { addAPI, addCustomMethods } from './add-api';
 import createSnapshotMethods from './create-snapshot-methods';
 import prepareApiFnArgs from './prepare-api-args';
 import returnSinglePropMode from '../return-single-prop-mode';
+import selectorApiExecutionMode from '../selector-api-execution-mode';
 
 export default class SelectorBuilder extends ClientFunctionBuilder {
-    constructor (fn, options, callsiteNames) {
+    constructor (fn, options, callsiteNames, callsite) {
         const apiFn                        = options && options.apiFn;
         const apiFnID                      = options && options.apiFnID;
         const builderFromSelector          = fn && fn[functionBuilderSymbol];
@@ -45,6 +46,7 @@ export default class SelectorBuilder extends ClientFunctionBuilder {
             this.options.apiFnChain.push(apiFn);
 
         this.options.apiFnID = typeof apiFnID === 'number' ? apiFnID : this.options.apiFnChain.length - 1;
+        this.callsite        = callsite;
     }
 
     _getCompiledFnCode () {
@@ -90,7 +92,7 @@ export default class SelectorBuilder extends ClientFunctionBuilder {
     }
 
     _executeCommand (args, testRun, callsite) {
-        const resultPromise = super._executeCommand(args, testRun, callsite);
+        const resultPromise = super._executeCommand(args, testRun, this.callsite || callsite);
 
         this._addBoundArgsSelectorGetter(resultPromise, args);
 
@@ -122,7 +124,7 @@ export default class SelectorBuilder extends ClientFunctionBuilder {
             customDOMProperties,
             customMethods,
             apiFnChain,
-            boundArgs
+            boundArgs,
         } = this.options;
 
         return merge({}, dependencies, {
@@ -132,15 +134,15 @@ export default class SelectorBuilder extends ClientFunctionBuilder {
                 counterMode,
                 collectionMode,
                 index: isNullOrUndefined(index) ? null : index,
-                getVisibleValueMode
+                getVisibleValueMode,
             },
             apiInfo: {
                 apiFnChain,
-                apiFnID: this._getSourceSelectorBuilderApiFnID()
+                apiFnID: this._getSourceSelectorBuilderApiFnID(),
             },
             boundArgs,
             customDOMProperties,
-            customMethods
+            customMethods,
         });
     }
 
@@ -153,7 +155,7 @@ export default class SelectorBuilder extends ClientFunctionBuilder {
             needError:                 this.options.needError,
             apiFnChain:                this.options.apiFnChain,
             visibilityCheck:           !!this.options.visibilityCheck,
-            timeout:                   this.options.timeout
+            timeout:                   this.options.timeout,
         });
     }
 
@@ -161,10 +163,10 @@ export default class SelectorBuilder extends ClientFunctionBuilder {
         super._validateOptions(options);
 
         if (!isNullOrUndefined(options.visibilityCheck))
-            assertType(is.boolean, this.callsiteNames.instantiation, '"visibilityCheck" option', options.visibilityCheck);
+            assertType(is.boolean, this.callsiteNames.instantiation, 'The "visibilityCheck" option', options.visibilityCheck);
 
         if (!isNullOrUndefined(options.timeout))
-            assertType(is.nonNegativeNumber, this.callsiteNames.instantiation, '"timeout" option', options.timeout);
+            assertType(is.nonNegativeNumber, this.callsiteNames.instantiation, 'The "timeout" option', options.timeout);
     }
 
     _getReplicatorTransforms () {
@@ -192,7 +194,7 @@ export default class SelectorBuilder extends ClientFunctionBuilder {
             SelectorBuilder,
             this.options.customDOMProperties,
             this.options.customMethods,
-            this._getTestRun() ? this._getTestRun().observedCallsites : null
+            this._getObservedCallsites()
         );
     }
 
@@ -212,6 +214,18 @@ export default class SelectorBuilder extends ClientFunctionBuilder {
 
             if (this.options.customMethods)
                 addCustomMethods(snapshot, () => snapshot.selector, SelectorBuilder, this.options.customMethods);
+
+            if (selectorApiExecutionMode.isSync) {
+                addAPI(
+                    snapshot,
+                    () => snapshot.selector,
+                    SelectorBuilder,
+                    this.options.customDOMProperties,
+                    this.options.customMethods,
+                    this._getObservedCallsites(),
+                    true
+                );
+            }
         }
 
         return snapshot;

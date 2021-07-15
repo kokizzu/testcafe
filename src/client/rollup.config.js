@@ -11,7 +11,10 @@ import alias from '@rollup/plugin-alias';
 
 const NO_HAMMERHEAD_CHUNKS = [
     'browser/idle-page/index.js',
-    'browser/service-worker.js'
+    'browser/service-worker.js',
+
+    // TODO: should not inject pinkie
+    'proxyless/index.ts',
 ];
 
 const CHUNK_NAMES = [
@@ -19,7 +22,7 @@ const CHUNK_NAMES = [
     'core/index.js',
     'driver/index.js',
     'ui/index.js',
-    'automation/index.js'
+    'automation/index.js',
 ];
 
 const TARGET_DIR = '../../lib/client';
@@ -28,12 +31,12 @@ const COMMON_GLOBALS = {
     'hammerhead':          'window[\'%hammerhead%\']',
     'testcafe-automation': 'window[\'%testCafeAutomation%\']',
     'testcafe-core':       'window[\'%testCafeCore%\']',
-    'testcafe-ui':         'window[\'%testCafeUI%\']'
+    'testcafe-ui':         'window[\'%testCafeUI%\']',
 };
 
 const EXTENDED_GLOBALS = {
     ...COMMON_GLOBALS,
-    'pinkie': 'window[\'%hammerhead%\'].Promise'
+    'pinkie': 'window[\'%hammerhead%\'].Promise',
 };
 
 const GLOBALS = chunk => NO_HAMMERHEAD_CHUNKS.includes(chunk) ? COMMON_GLOBALS : EXTENDED_GLOBALS;
@@ -46,12 +49,12 @@ const CONFIG = CHUNK_NAMES.map(chunk => ({
     context: '(void 0)',
 
     output: {
-        file:    path.join(TARGET_DIR, chunk),
+        file:    path.join(TARGET_DIR, chunk.replace(/\.ts$/, '.js')),
         format:  'iife',
         globals: GLOBALS(chunk),
         // NOTE: 'use strict' in our scripts can break user code
         // https://github.com/DevExpress/testcafe/issues/258
-        strict:  false
+        strict:  false,
     },
 
     plugins: [
@@ -59,15 +62,15 @@ const CONFIG = CHUNK_NAMES.map(chunk => ({
         alias({
             entries: [{
                 find:        'tslib',
-                replacement: '../../node_modules/tslib/tslib.es6.js'
-            }]
+                replacement: '../../node_modules/tslib/tslib.es6.js',
+            }],
         }),
         commonjs(),
         typescript({ include: ['*.+(j|t)s', '**/*.+(j|t)s', '../**/*.+(j|t)s'] }),
 
         //NOTE: Need to keep this after the typescript plugin to allow using both async/await and TypeScript
         inject({ Promise: 'pinkie' }),
-    ]
+    ],
 }));
 
 export default CONFIG;

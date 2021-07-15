@@ -6,7 +6,7 @@ const ReporterPluginMethod = require('../../../../lib/reporter/plugin-methods');
 const {
     createSimpleTestStream,
     createAsyncTestStream,
-    createSyncTestStream
+    createSyncTestStream,
 } = require('../../utils/stream');
 
 describe('Reporter', () => {
@@ -27,13 +27,13 @@ describe('Reporter', () => {
             reporter: [
                 {
                     name:   'json',
-                    output: stream1
+                    output: stream1,
                 },
                 {
                     name:   'list',
-                    output: stream2
-                }
-            ]
+                    output: stream2,
+                },
+            ],
         })
             .then(() => {
                 expect(stream1.data).to.contains('Chrome');
@@ -53,9 +53,9 @@ describe('Reporter', () => {
             reporter: [
                 {
                     name:   'json',
-                    output: stream
-                }
-            ]
+                    output: stream,
+                },
+            ],
         };
 
         return runTests('testcafe-fixtures/index-test.js', 'Simple test', runOpts)
@@ -72,9 +72,9 @@ describe('Reporter', () => {
             reporter: [
                 {
                     name:   'json',
-                    output: stream
-                }
-            ]
+                    output: stream,
+                },
+            ],
         };
 
         return runTests('testcafe-fixtures/index-test.js', 'Simple test', runOpts)
@@ -99,9 +99,9 @@ describe('Reporter', () => {
             reporter: [
                 {
                     name:   'json',
-                    output: process.stdout
-                }
-            ]
+                    output: process.stdout,
+                },
+            ],
         };
 
         return runTests('testcafe-fixtures/index-test.js', 'Simple test', runOpts)
@@ -128,9 +128,9 @@ describe('Reporter', () => {
             reporter: [
                 {
                     name:   'json',
-                    output: process.stderr
-                }
-            ]
+                    output: process.stderr,
+                },
+            ],
         };
 
         return runTests('testcafe-fixtures/index-test.js', 'Simple test', runOpts)
@@ -157,9 +157,9 @@ describe('Reporter', () => {
             reporter: [
                 {
                     name:   'json',
-                    output: void 0
-                }
-            ]
+                    output: void 0,
+                },
+            ],
         };
 
         return runTests('testcafe-fixtures/index-test.js', 'Simple test', runOpts)
@@ -178,9 +178,9 @@ describe('Reporter', () => {
             reporter: [
                 {
                     name:   'json',
-                    output: stream
-                }
-            ]
+                    output: stream,
+                },
+            ],
         };
 
         return runTests('testcafe-fixtures/index-test.js', 'Simple test', runOpts)
@@ -198,13 +198,13 @@ describe('Reporter', () => {
             reporter: [
                 {
                     name:   'list',
-                    output: testStream
+                    output: testStream,
                 },
                 {
                     name:   'list',
-                    output: reportFileName
-                }
-            ]
+                    output: reportFileName,
+                },
+            ],
         })
             .then(() => {
                 const reportDataFromFile = fs.readFileSync(reportFileName).toString();
@@ -224,9 +224,9 @@ describe('Reporter', () => {
             reporter: [
                 {
                     name:   'json',
-                    output: stream
-                }
-            ]
+                    output: stream,
+                },
+            ],
         };
 
         return runTests('testcafe-fixtures/index-test.js', 'Simple test', runOpts)
@@ -240,16 +240,20 @@ describe('Reporter', () => {
             return {
                 only:               ['chrome'],
                 disableScreenshots: true,
-                reporter:           generateReporter(log, options)
+                reporter:           generateReporter(log, options),
             };
         }
 
-        it('Simple command', function () {
-            const log = [];
+        let log = null;
 
+        beforeEach(() => {
+            log = [];
+        });
+
+        it('Simple command', function () {
             return runTests('testcafe-fixtures/index-test.js', 'Simple command test', generateRunOptions(log, {
                 includeBrowserInfo: true,
-                includeTestInfo:    true
+                includeTestInfo:    true,
             }))
                 .then(() => {
                     expect(log).eql([
@@ -260,12 +264,12 @@ describe('Reporter', () => {
                             test:    {
                                 id:    'test-id',
                                 name:  'Simple command test',
-                                phase: 'inTest'
+                                phase: 'inTest',
                             },
                             fixture: {
                                 id:   'fixture-id',
-                                name: 'Reporter'
-                            }
+                                name: 'Reporter',
+                            },
                         },
                         {
                             name:    'click',
@@ -274,55 +278,51 @@ describe('Reporter', () => {
                                 type:     'click',
                                 selector: 'Selector(\'#target\')',
                                 options:  {
-                                    offsetX: 10
-                                }
+                                    offsetX: 10,
+                                },
                             },
                             test: {
                                 id:    'test-id',
                                 name:  'Simple command test',
-                                phase: 'inTest'
+                                phase: 'inTest',
                             },
                             fixture: {
                                 id:   'fixture-id',
-                                name: 'Reporter'
-                            }
-                        }
+                                name: 'Reporter',
+                            },
+                        },
                     ]);
                 });
         });
 
         it('Simple command Error', function () {
-            const log = [];
-
             return runTests('testcafe-fixtures/index-test.js', 'Simple command err test', generateRunOptions(log))
                 .then(() => {
                     expect(log).eql([
                         {
                             name:   'click',
-                            action: 'start'
+                            action: 'start',
                         },
                         {
                             name:    'click',
                             action:  'done',
                             command: {
                                 type:     'click',
-                                selector: 'Selector(\'#non-existing-target\')'
+                                selector: 'Selector(\'#non-existing-target\')',
                             },
-                            err: 'E24'
-                        }
+                            err: 'E24',
+                        },
                     ]);
                 });
         });
 
         it('Simple assertion', function () {
-            const log = [];
-
             return runTests('testcafe-fixtures/index-test.js', 'Simple assertion', generateRunOptions(log))
                 .then(() => {
                     expect(log).eql([
                         {
                             name:   'eql',
-                            action: 'start'
+                            action: 'start',
                         },
                         {
                             name:    'eql',
@@ -335,23 +335,21 @@ describe('Reporter', () => {
                                 expected2:     void 0,
                                 message:       'assertion message',
                                 options:       {
-                                    timeout: 100
-                                }
-                            }
+                                    timeout: 100,
+                                },
+                            },
                         },
                     ]);
                 });
         });
 
         it('Selector assertion', function () {
-            const log = [];
-
             return runTests('testcafe-fixtures/index-test.js', 'Selector assertion', generateRunOptions(log))
                 .then(() => {
                     expect(log).eql([
                         {
                             name:   'eql',
-                            action: 'start'
+                            action: 'start',
                         },
                         {
                             name:    'eql',
@@ -362,50 +360,46 @@ describe('Reporter', () => {
                                 assertionType: 'eql',
                                 expected:      'target',
                                 expected2:     void 0,
-                                message:       null
-                            }
+                                message:       null,
+                            },
                         },
                     ]);
                 });
         });
 
         it('Snapshot', function () {
-            const log = [];
-
             return runTests('testcafe-fixtures/index-test.js', 'Snapshot', generateRunOptions(log))
                 .then(() => {
                     expect(log).eql([
                         {
                             name:   'execute-selector',
-                            action: 'start'
+                            action: 'start',
                         },
                         {
                             name:    'execute-selector',
                             action:  'done',
                             command: {
                                 selector: 'Selector(\'#target\')',
-                                type:     'execute-selector'
-                            }
+                                type:     'execute-selector',
+                            },
                         },
                         {
                             name:   'execute-selector',
-                            action: 'start'
+                            action: 'start',
                         },
                         {
                             name:    'execute-selector',
                             action:  'done',
                             command: {
                                 selector: 'Selector(\'body\').find(\'#target\')',
-                                type:     'execute-selector'
-                            }
-                        }
+                                type:     'execute-selector',
+                            },
+                        },
                     ]);
                 });
         });
 
         it('Client Function', function () {
-            const log = [];
-
             return runTests('testcafe-fixtures/index-test.js', 'Client Function', generateRunOptions(log))
                 .then(() => {
                     expect(log).eql([
@@ -417,20 +411,18 @@ describe('Reporter', () => {
                                 clientFn: {
                                     args: [
                                         1,
-                                        true
+                                        true,
                                     ],
-                                    code: '(function(){ var func = function func(bool) {return function () {return bool;};}; return func;})();'
+                                    code: '(function(){ var func = function func(bool) {return function () {return bool;};}; return func;})();',
                                 },
-                                type: 'execute-client-function'
-                            }
+                                type: 'execute-client-function',
+                            },
                         }]
                     );
                 });
         });
 
         it('Complex command', function () {
-            const log = [];
-
             return runTests('testcafe-fixtures/index-test.js', 'Complex command test', generateRunOptions(log))
                 .then(() => {
                     expect(log).eql([
@@ -442,18 +434,16 @@ describe('Reporter', () => {
                                 role: {
                                     loginUrl: 'http://localhost:3000/fixtures/reporter/pages/index.html',
                                     options:  { preserveUrl: true },
-                                    phase:    'initialized'
+                                    phase:    'initialized',
                                 },
-                                type: 'useRole'
-                            }
-                        }
+                                type: 'useRole',
+                            },
+                        },
                     ]);
                 });
         });
 
         it('Complex nested command', function () {
-            const log = [];
-
             return runTests('testcafe-fixtures/index-test.js', 'Complex nested command test', generateRunOptions(log, { includeTestInfo: true }))
                 .then(() => {
                     expect(log).eql([
@@ -463,12 +453,12 @@ describe('Reporter', () => {
                             test:   {
                                 id:    'test-id',
                                 name:  'Complex nested command test',
-                                phase: 'inTest'
+                                phase: 'inTest',
                             },
                             fixture: {
                                 id:   'fixture-id',
-                                name: 'Reporter'
-                            }
+                                name: 'Reporter',
+                            },
                         },
                         {
                             name:   'click',
@@ -476,29 +466,29 @@ describe('Reporter', () => {
                             test:   {
                                 id:    'test-id',
                                 name:  'Complex nested command test',
-                                phase: 'inRoleInitializer'
+                                phase: 'inRoleInitializer',
                             },
                             fixture: {
                                 id:   'fixture-id',
-                                name: 'Reporter'
-                            }
+                                name: 'Reporter',
+                            },
                         },
                         {
                             name:    'click',
                             action:  'done',
                             command: {
                                 selector: 'Selector(\'#target\')',
-                                type:     'click'
+                                type:     'click',
                             },
                             test: {
                                 id:    'test-id',
                                 name:  'Complex nested command test',
-                                phase: 'inRoleInitializer'
+                                phase: 'inRoleInitializer',
                             },
                             fixture: {
                                 id:   'fixture-id',
-                                name: 'Reporter'
-                            }
+                                name: 'Reporter',
+                            },
                         },
                         {
                             name:    'useRole',
@@ -507,27 +497,25 @@ describe('Reporter', () => {
                                 role: {
                                     loginUrl: 'http://localhost:3000/fixtures/reporter/pages/index.html',
                                     options:  { 'preserveUrl': false },
-                                    phase:    'initialized'
+                                    phase:    'initialized',
                                 },
-                                type: 'useRole'
+                                type: 'useRole',
                             },
                             test: {
                                 id:    'test-id',
                                 name:  'Complex nested command test',
-                                phase: 'inTest'
+                                phase: 'inTest',
                             },
                             fixture: {
                                 id:   'fixture-id',
-                                name: 'Reporter'
-                            }
-                        }
+                                name: 'Reporter',
+                            },
+                        },
                     ]);
                 });
         });
 
         it('Complex nested command error', function () {
-            const log = [];
-
             return runTests('testcafe-fixtures/index-test.js', 'Complex nested command error', generateRunOptions(log))
                 .then(() => {
                     expect(log).eql([
@@ -538,9 +526,9 @@ describe('Reporter', () => {
                             action:  'done',
                             command: {
                                 selector: 'Selector(\'#non-existing-element\')',
-                                type:     'click'
+                                type:     'click',
                             },
-                            err: 'E24'
+                            err: 'E24',
                         },
                         {
                             name:    'useRole',
@@ -549,18 +537,16 @@ describe('Reporter', () => {
                                 role: {
                                     loginUrl: 'http://localhost:3000/fixtures/reporter/pages/index.html',
                                     options:  { 'preserveUrl': false },
-                                    phase:    'initialized'
+                                    phase:    'initialized',
                                 },
-                                type: 'useRole'
-                            }
-                        }
+                                type: 'useRole',
+                            },
+                        },
                     ]);
                 });
         });
 
         it('Eval', function () {
-            const log = [];
-
             return runTests('testcafe-fixtures/index-test.js', 'Eval', generateRunOptions(log))
                 .then(() => {
                     expect(log).eql([
@@ -571,18 +557,16 @@ describe('Reporter', () => {
                             command: {
                                 clientFn: {
                                     args: [],
-                                    code: '(function(){ var func = function func() {return document.getElementById(\'#target\');}; return func;})();'
+                                    code: '(function(){ var func = function func() {return document.getElementById(\'#target\');}; return func;})();',
                                 },
-                                type: 'execute-client-function'
-                            }
-                        }
+                                type: 'execute-client-function',
+                            },
+                        },
                     ]);
                 });
         });
 
         it('Should not add action information in report if action was emitted after test done (GH-5650)', () => {
-            const log = [];
-
             return runTests('testcafe-fixtures/index-test.js', 'Action done after test done', generateRunOptions(log))
                 .then(() => {
                     expect(log).eql([
@@ -595,12 +579,222 @@ describe('Reporter', () => {
                                 type:     'execute-client-function',
                                 clientFn: {
                                     code: '(function(){ var func = function func() {return  __get$Loc(location) .reload(true);}; return func;})();',
-                                    args: []
-                                }
-                            }
-                        }
+                                    args: [],
+                                },
+                            },
+                        },
                     ]);
                 });
+        });
+
+        it('Value typed using the "typeText" action in the input[type=password] should be masked', () => {
+            return runTests(
+                'testcafe-fixtures/index-test.js',
+                'The "typeText" action with the input[type=password]',
+                { reporter: generateReporter(log, { includeCommandInfo: true }) }
+            ).then(() => {
+                expect(log).to.include.deep.members([
+                    {
+                        name:    'typeText',
+                        action:  'start',
+                        command: {
+                            type:     'type-text',
+                            selector: {
+                                expression: "Selector('#password-input')",
+                            },
+                            options: {
+                                confidential: true,
+                            },
+                            text: '********',
+                        },
+                    },
+                    {
+                        name:    'typeText',
+                        action:  'done',
+                        command: {
+                            type:     'type-text',
+                            selector: "Selector('#password-input')",
+                            options:  {
+                                confidential: true,
+                            },
+                            text: '********',
+                        },
+                    },
+                ]);
+            });
+        });
+
+        it('Value typed using the "typeText" action should be masked if "confidential" flag is set to true', () => {
+            return runTests(
+                'testcafe-fixtures/index-test.js',
+                'The "typeText" action with the input[type=text] and the "confidential" flag set to true',
+                { reporter: generateReporter(log, { includeCommandInfo: true }) }
+            ).then(() => {
+                expect(log).to.include.deep.members([
+                    {
+                        name:    'typeText',
+                        action:  'start',
+                        command: {
+                            type:     'type-text',
+                            selector: {
+                                expression: "Selector('#input')",
+                            },
+                            options: {
+                                confidential: true,
+                            },
+                            text: '********',
+                        },
+                    },
+                    {
+                        name:    'typeText',
+                        action:  'done',
+                        command: {
+                            type:     'type-text',
+                            selector: "Selector('#input')",
+                            options:  {
+                                confidential: true,
+                            },
+                            text: '********',
+                        },
+                    },
+                ]);
+            });
+        });
+
+        it('Value typed using the "typeText" action shouldn\'t be masked if "confidential" flag is set to false', () => {
+            return runTests(
+                'testcafe-fixtures/index-test.js',
+                'The "typeText" action with the input[type=password] and the "confidential" flag set to false',
+                { reporter: generateReporter(log, { includeCommandInfo: true }) }
+            ).then(() => {
+                expect(log).to.include.deep.members([
+                    {
+                        name:    'typeText',
+                        action:  'start',
+                        command: {
+                            type:     'type-text',
+                            selector: {
+                                expression: "Selector('#password-input')",
+                            },
+                            options: {
+                                confidential: false,
+                            },
+                            text: 'pa$$w0rd',
+                        },
+                    },
+                    {
+                        name:    'typeText',
+                        action:  'done',
+                        command: {
+                            type:     'type-text',
+                            selector: "Selector('#password-input')",
+                            options:  {
+                                confidential: false,
+                            },
+                            text: 'pa$$w0rd',
+                        },
+                    },
+                ]);
+            });
+        });
+
+        it('Value typed using the "pressKey" action in the input[type=password] should be masked', () => {
+            return runTests(
+                'testcafe-fixtures/index-test.js',
+                'The "pressKey" action with the input[type=password]',
+                { reporter: generateReporter(log, { includeCommandInfo: true }) }
+            ).then(() => {
+                expect(log).to.include.deep.members([
+                    {
+                        name:    'pressKey',
+                        action:  'start',
+                        command: {
+                            type:    'press-key',
+                            options: {
+                                confidential: true,
+                            },
+                            keys: '********',
+                        },
+                    },
+                    {
+                        name:    'pressKey',
+                        action:  'done',
+                        command: {
+                            type:    'press-key',
+                            options: {
+                                confidential: true,
+                            },
+                            keys: '********',
+                        },
+                    },
+                ]);
+            });
+        });
+
+        it('Value typed using the "pressKey" action should be masked if "confidential" flag is set to true', () => {
+            return runTests(
+                'testcafe-fixtures/index-test.js',
+                'The "pressKey" action with the input[type=text] and the "confidential" flag set to true',
+                { reporter: generateReporter(log, { includeCommandInfo: true }) }
+            ).then(() => {
+                expect(log).to.include.deep.members([
+                    {
+                        name:    'pressKey',
+                        action:  'start',
+                        command: {
+                            type:    'press-key',
+                            options: {
+                                confidential: true,
+                            },
+                            keys: '********',
+                        },
+                    },
+                    {
+                        name:    'pressKey',
+                        action:  'done',
+                        command: {
+                            type:    'press-key',
+                            options: {
+                                confidential: true,
+                            },
+                            keys: '********',
+                        },
+                    },
+                ]);
+            });
+        });
+
+        it('Value typed using the "pressKey" action shouldn\'t be masked if "confidential" flag is set to false', () => {
+            return runTests(
+                'testcafe-fixtures/index-test.js',
+                'The "pressKey" action with the input[type=password] and the "confidential" flag set to false',
+                { reporter: generateReporter(log, { includeCommandInfo: true }) }
+            ).then(() => {
+                expect(log).to.include.deep.members([
+                    {
+                        name:    'pressKey',
+                        action:  'start',
+                        command: {
+                            type:    'press-key',
+                            options: {
+                                confidential: false,
+                            },
+                            keys: 'p a $ $ w 0 r d enter',
+                        },
+                    },
+                    {
+                        name:    'pressKey',
+                        action:  'done',
+                        command: {
+                            type:    'press-key',
+                            options: {
+                                confidential: false,
+                            },
+                            keys: 'p a $ $ w 0 r d enter',
+                        },
+                    },
+                ]);
+            });
         });
     });
 
@@ -612,7 +806,7 @@ describe('Reporter', () => {
                 { expression: 'Selector(\'#obscuredInput\')', element: { tagName: 'div', attributes: { id: 'fixed' } } },
                 { expression: 'Selector(\'#obscuredDiv\')', element: { tagName: 'div', attributes: { id: 'obscuredDiv' } } },
                 { expression: 'Selector(\'#p1\')', element: { attributes: { id: 'p1' }, tagName: 'p' } },
-                { expression: 'Selector(\'#p2\')', element: { attributes: { id: 'p2' }, tagName: 'p' } }
+                { expression: 'Selector(\'#p2\')', element: { attributes: { id: 'p2' }, tagName: 'p' } },
             ];
 
             function customReporter (log) {
@@ -640,7 +834,7 @@ describe('Reporter', () => {
                         async reportTestDone () {
                         },
                         async reportTaskDone () {
-                        }
+                        },
                     };
                 };
             }
@@ -674,7 +868,7 @@ describe('Reporter', () => {
                         async reportTestDone () {
                         },
                         async reportTaskDone () {
-                        }
+                        },
                     };
                 };
             }
@@ -714,14 +908,14 @@ describe('Reporter', () => {
                         testDoneErrors = testRunInfo.errs;
                     },
                     async reportTaskDone () {
-                    }
+                    },
                 };
             }
 
             return runTests('testcafe-fixtures/index-test.js', 'Screenshot on action error', {
                 only:               'chrome',
                 reporter:           screenshotReporter,
-                screenshotsOnFails: true
+                screenshotsOnFails: true,
             })
                 .then(() => {
                     expect(actionDoneErrors[0]).is.undefined;
@@ -739,7 +933,7 @@ describe('Reporter', () => {
                 async reportTaskStart () {},
                 async reportFixtureStart () {},
                 async reportTestDone () {},
-                async reportTaskDone () {}
+                async reportTaskDone () {},
             };
 
             base[method] = () => {
@@ -756,14 +950,14 @@ describe('Reporter', () => {
                     'Simple test',
                     {
                         reporter:   createReporterWithBrokenMethod(method),
-                        shouldFail: true
+                        shouldFail: true,
                     }
                 );
 
                 throw new Error('Promise rejection expected');
             }
             catch (err) {
-                expect(err.message).startsWith(`An uncaught error occurred in the "function () {}" reporter's "${method}" method. Error details:\nError: oops`);
+                expect(err.message).startsWith(`The "${method}" method of the "function () {}" reporter produced an uncaught error. Error details:\nError: oops`);
             }
         }
     });

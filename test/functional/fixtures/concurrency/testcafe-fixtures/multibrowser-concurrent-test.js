@@ -1,28 +1,35 @@
+import timeline from '../timeline';
 import { ClientFunction } from 'testcafe';
 
 const getUserAgent = ClientFunction(() => navigator.userAgent);
+const data         = Object.create(null);
 
 fixture `Concurrent`
     .page`../pages/index.html`
     .beforeEach(async t => {
         t.ctx.userAgent = await getUserAgent();
 
-        if (!global.timeline[t.ctx.userAgent])
-            global.timeline[t.ctx.userAgent] = [];
+        if (!data[t.ctx.userAgent])
+            data[t.ctx.userAgent] = [];
+    })
+    .after(() => {
+        timeline.setData(data);
+        timeline.save();
+        timeline.clear();
     });
 
 test('Long test', async t => {
-    global.timeline[t.ctx.userAgent].push('test started');
+    data[t.ctx.userAgent].push('test started');
 
     await t.wait(10000);
 
-    global.timeline[t.ctx.userAgent].push('long finished');
+    data[t.ctx.userAgent].push('long finished');
 });
 
 test('Short test', async t => {
-    global.timeline[t.ctx.userAgent].push('test started');
+    data[t.ctx.userAgent].push('test started');
 
     await t.wait(1000);
 
-    global.timeline[t.ctx.userAgent].push('short finished');
+    data[t.ctx.userAgent].push('short finished');
 });

@@ -2,16 +2,14 @@ import { isEmpty } from 'lodash';
 import { ExecuteSelectorCommand, ExecuteClientFunctionCommand } from '../../test-run/commands/observation';
 import {
     NavigateToCommand,
+    PressKeyCommand,
     SetNativeDialogHandlerCommand,
-    UseRoleCommand
+    TypeTextCommand,
+    UseRoleCommand,
 } from '../../test-run/commands/actions';
 
 import { createReplicator, SelectorNodeTransform } from '../../client-functions/replicator';
-import {
-    Command,
-    FormattedCommand,
-    SelectorInfo
-} from './interfaces';
+import { FormattedCommand, SelectorInfo } from './interfaces';
 
 import { Dictionary } from '../../configuration/interfaces';
 import diff from '../../utils/diff';
@@ -19,9 +17,15 @@ import diff from '../../utils/diff';
 import {
     ActionOptions,
     ResizeToFitDeviceOptions,
-    AssertionOptions
+    AssertionOptions,
 } from '../../test-run/commands/options';
 
+import CommandBase from '../../test-run/commands/base';
+import CommandType from '../../test-run/commands/type';
+import AssertionCommand from '../../test-run/commands/assertion';
+
+
+const CONFIDENTIAL_INFO_PLACEHOLDER = '********';
 
 function isCommandOptions (obj: object): boolean {
     return obj instanceof ActionOptions || obj instanceof ResizeToFitDeviceOptions || obj instanceof AssertionOptions;
@@ -29,10 +33,10 @@ function isCommandOptions (obj: object): boolean {
 
 export class CommandFormatter {
     private _elements: HTMLElement[] = [];
-    private readonly _command: Command;
+    private readonly _command: CommandBase;
     private readonly _result: unknown;
 
-    public constructor (command: Command, result: unknown) {
+    public constructor (command: CommandBase, result: unknown) {
         this._command = command;
         this._result = result;
     }
@@ -53,7 +57,19 @@ export class CommandFormatter {
         else
             this._assignProperties(this._command, formattedCommand);
 
+        this._maskConfidentialInfo(formattedCommand);
+
         return formattedCommand;
+    }
+
+    private _maskConfidentialInfo (command: FormattedCommand): void {
+        if (!(command.options as any)?.confidential)
+            return;
+
+        if (this._command instanceof TypeTextCommand)
+            command.text = CONFIDENTIAL_INFO_PLACEHOLDER;
+        else if (this._command instanceof PressKeyCommand)
+            command.keys = CONFIDENTIAL_INFO_PLACEHOLDER;
     }
 
     private _getElementByPropertyName (propertyName: string): HTMLElement {
@@ -71,7 +87,7 @@ export class CommandFormatter {
         return this._elements[0];
     }
 
-    private _prepareSelector (command: Command, propertyName: string): SelectorInfo {
+    private _prepareSelector (command: ExecuteSelectorCommand, propertyName: string): SelectorInfo {
         const selectorChain = command.apiFnChain as string[];
         const expression    = selectorChain.join('');
 
@@ -86,45 +102,54 @@ export class CommandFormatter {
             result.element = element;
 
         if (command.timeout)
-            result.timeout = command.timeout;
+            result.timeout = command.timeout as number;
 
         return result;
     }
 
-    private _prepareClientFunction (command: Command): object {
+    private _prepareClientFunction (command: ExecuteClientFunctionCommand): object {
         return {
             code: command.fnCode,
-            args: command.args[0]
+            args: command.args[0],
         };
     }
 
-    private _prepareDialogHandler (command: Command): object {
+    private _prepareDialogHandler (command: SetNativeDialogHandlerCommand): object {
         return this._prepareClientFunction(command.dialogHandler);
     }
 
-    private _prepareRole (command: Command): object {
+    private _prepareRole (command: UseRoleCommand): object {
         const { loginUrl, opts, phase } = command.role;
 
         return { loginUrl, options: opts, phase };
     }
 
-    private _prepareUrl (command: Command): string {
+    private _prepareUrl (command: NavigateToCommand): string {
         return command.url;
     }
 
-    private _assignProperties (command: Command, formattedCommand: FormattedCommand): void {
+    private _filterNotReportedProperties (properties: string[], commandType: string): string[] {
+        if (commandType !== CommandType.assertion)
+            return properties;
+
+        return properties.filter(prop => !AssertionCommand.NOT_REPORTED_PROPERTIES.includes(prop));
+    }
+
+    private _assignProperties (command: CommandBase, formattedCommand: FormattedCommand): void {
         if (!this._command._getAssignableProperties)
             return;
 
-        const sourceProperties = this._command._getAssignableProperties().map(prop => prop.name);
+        let sourceProperties = this._command._getAssignableProperties().map(prop => prop.name);
+
+        sourceProperties = this._filterNotReportedProperties(sourceProperties, this._command.type);
 
         sourceProperties.forEach((key: string) => {
             const property = this._command[key];
 
             if (property instanceof ExecuteSelectorCommand)
                 formattedCommand[key] = this._prepareSelector(property, key);
-            else if (isCommandOptions(property)) {
-                const modifiedOptions = CommandFormatter._getModifiedOptions(property);
+            else if (isCommandOptions(property as object)) {
+                const modifiedOptions = CommandFormatter._getModifiedOptions(property as object);
 
                 if (!isEmpty(modifiedOptions))
                     formattedCommand[key] = modifiedOptions;

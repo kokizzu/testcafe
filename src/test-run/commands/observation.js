@@ -10,12 +10,12 @@ export class WaitCommand extends CommandBase {
 
     _getAssignableProperties () {
         return [
-            { name: 'timeout', type: positiveIntegerArgument, required: true }
+            { name: 'timeout', type: positiveIntegerArgument, required: true },
         ];
     }
 }
 
-class ExecuteClientFunctionCommandBase extends CommandBase {
+export class ExecuteClientFunctionCommandBase extends CommandBase {
     constructor (obj, testRun, type) {
         super(obj, testRun, type, false);
     }
@@ -25,7 +25,7 @@ class ExecuteClientFunctionCommandBase extends CommandBase {
             { name: 'instantiationCallsiteName', defaultValue: '' },
             { name: 'fnCode', defaultValue: '' },
             { name: 'args', defaultValue: [] },
-            { name: 'dependencies', defaultValue: [] }
+            { name: 'dependencies', defaultValue: [] },
         ];
     }
 }
@@ -47,14 +47,20 @@ export class ExecuteSelectorCommand extends ExecuteClientFunctionCommandBase {
             { name: 'timeout', defaultValue: null },
             { name: 'apiFnChain' },
             { name: 'needError' },
-            { name: 'index', defaultValue: 0 }
+            { name: 'index', defaultValue: 0 },
         ]);
     }
 }
 
-export class DebugCommand {
+export class DebugCommand extends CommandBase {
     constructor () {
-        this.type = TYPE.debug;
+        super(null, null, TYPE.debug);
+    }
+}
+
+export class DisableDebugCommand extends CommandBase {
+    constructor () {
+        super(null, null, TYPE.disableDebug);
     }
 }
 

@@ -6,7 +6,7 @@ const baseReport = {
     async reportTestDone () {
     },
     async reportTaskDone () {
-    }
+    },
 };
 
 function generateReporter (log, options = {}) {
@@ -14,12 +14,13 @@ function generateReporter (log, options = {}) {
         emitOnStart = true,
         emitOnDone = true,
         includeBrowserInfo = false,
-        includeTestInfo = false
+        includeTestInfo = false,
+        includeCommandInfo = false,
     } = options;
 
     return function () {
         return Object.assign({}, baseReport, {
-            async reportTestActionStart (name, { browser, test, fixture }) {
+            async reportTestActionStart (name, { browser, test, fixture, command }) {
                 if (!emitOnStart)
                     return;
 
@@ -33,17 +34,20 @@ function generateReporter (log, options = {}) {
                         item.test = {
                             id:    'test-id',
                             name:  test.name,
-                            phase: test.phase
+                            phase: test.phase,
                         };
                     }
 
                     if (fixture.id) {
                         item.fixture = {
                             id:   'fixture-id',
-                            name: fixture.name
+                            name: fixture.name,
                         };
                     }
                 }
+
+                if (includeCommandInfo)
+                    item.command = command;
 
                 log.push(item);
             },
@@ -65,20 +69,20 @@ function generateReporter (log, options = {}) {
                         item.test = {
                             id:    'test-id',
                             name:  test.name,
-                            phase: test.phase
+                            phase: test.phase,
                         };
                     }
 
                     if (fixture.id) {
                         item.fixture = {
                             id:   'fixture-id',
-                            name: fixture.name
+                            name: fixture.name,
                         };
                     }
                 }
 
                 log.push(item);
-            }
+            },
         });
     };
 }

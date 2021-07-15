@@ -1,116 +1,205 @@
+import { pull, isFunction } from 'lodash';
 import testRunTracker from '../../api/test-run-tracker';
-import prerenderCallsite from '../../utils/prerender-callsite';
-
 import { TestRunDispatcherProtocol } from './protocol';
 import TestController from '../../api/test-controller';
 import ObservedCallsitesStorage from '../../test-run/observed-callsites-storage';
 import WarningLog from '../../notifications/warning-log';
 import AssertionCommand from '../../test-run/commands/assertion';
-import AssertionExecutor from '../../assertions/executor';
 import { Dictionary } from '../../configuration/interfaces';
 import COMMAND_TYPE from '../../test-run/commands/type';
 import CommandBase from '../../test-run/commands/base';
-import * as serviceCommands from '../../test-run/commands/service';
 import { TestRunProxyInit } from '../interfaces';
 import Test from '../../api/structure/test';
 import RequestHook from '../../api/request-hooks/hook';
-import RequestHookMethodNames from '../../api/request-hooks/hook-method-names';
-import {
-    ConfigureResponseEvent,
-    RequestEvent,
-    ResponseEvent
-} from 'testcafe-hammerhead';
+import { generateUniqueId } from 'testcafe-hammerhead';
+import { CallsiteRecord } from 'callsite-record';
+import { UseRoleCommand } from '../../test-run/commands/actions';
+import ReExecutablePromise from '../../utils/re-executable-promise';
+import AsyncEventEmitter from '../../utils/async-event-emitter';
+import testRunMarker from '../../test-run/marker-symbol';
+import { ERROR_FILENAME } from '../../test-run/execute-js-expression/constants';
+import { UncaughtTestCafeErrorInCustomScript } from '../../errors/test-run';
+import { FunctionMarker } from '../serialization/replicator/transforms/function-marker-transform/marker';
+import getFn from '../../assertions/get-fn';
+import { isThennable } from '../../utils/thennable';
+import { PromiseMarker } from '../serialization/replicator/transforms/promise-marker-transform/marker';
 
-interface RequestHookEventDescriptor {
-    hookId: string;
-    name: RequestHookMethodNames;
-    eventData: RequestEvent | ConfigureResponseEvent | ResponseEvent;
-}
-
-class TestRunProxy {
+class TestRunProxy extends AsyncEventEmitter {
+    private [testRunMarker]: boolean;
     public readonly id: string;
+    public readonly test: Test;
     public readonly controller: TestController;
     public readonly observedCallsites: ObservedCallsitesStorage;
     public readonly warningLog: WarningLog;
-
+    public fixtureCtx: object;
+    public debugging: boolean = false;
     private readonly dispatcher: TestRunDispatcherProtocol;
-    private readonly fixtureCtx: unknown;
-    private readonly ctx: unknown;
+    public ctx: object;
     private readonly _options: Dictionary<OptionValue>;
-    private _requestHooks: RequestHook[];
+    private readonly assertionCommands: Map<string, AssertionCommand>;
+    private readonly asyncJsExpressionCallsites: Map<string, CallsiteRecord>;
+    public readonly browser: Browser;
 
-    public constructor ({ dispatcher, id, fixtureCtx, options }: TestRunProxyInit) {
-        this.dispatcher = dispatcher;
+    public constructor ({ dispatcher, id, test, options, browser }: TestRunProxyInit) {
+        super();
 
-        this.id = id;
+        this[testRunMarker] = true;
+        this.dispatcher     = dispatcher;
+        this.id             = id;
+        this.test           = test;
+        this.ctx            = Object.create(null);
+        this.fixtureCtx     = Object.create(null);
+        this._options       = options;
+        this.browser        = browser;
 
-        this.ctx        = Object.create(null);
-        this.fixtureCtx = fixtureCtx;
-        this._options   = options;
+        this.assertionCommands          = new Map<string, AssertionCommand>();
+        this.asyncJsExpressionCallsites = new Map<string, CallsiteRecord>();
 
         // TODO: Synchronize these properties with their real counterparts in the main process.
         // Postponed until (GH-3244). See details in (GH-5250).
         this.controller        = new TestController(this);
         this.observedCallsites = new ObservedCallsitesStorage();
         this.warningLog        = new WarningLog();
-        this._requestHooks     = [];
 
-        testRunTracker.activeTestRuns[id] = this;
+        testRunTracker.addActiveTestRun(this);
+
+        this._initializeRequestHooks();
     }
 
-    private _getAssertionTimeout (command: AssertionCommand): number {
+    private _initializeRequestHooks (): void {
+        this.test.requestHooks.forEach(this._attachWarningLog, this);
+    }
+
+    private _attachWarningLog (hook: RequestHook): void {
+        hook._warningLog = this.warningLog;
+    }
+
+    private _detachWarningLog (hook: RequestHook): void {
+        hook._warningLog = null;
+    }
+
+    private _storeAssertionCommand (command: AssertionCommand): void {
+        command.id = generateUniqueId();
+
+        this.assertionCommands.set(command.id, command);
+    }
+
+    private _handleAssertionCommand (command: AssertionCommand): void {
+        if (isFunction(command.actual)) {
+            command.originActual = command.actual;
+            command.actual       = new FunctionMarker();
+
+            this._storeAssertionCommand(command);
+        }
+        else if (command.actual instanceof ReExecutablePromise)
+            this._storeAssertionCommand(command);
+
+        else if (isThennable(command.actual)) {
+            command.originActual = command.actual;
+            command.actual       = new PromiseMarker();
+
+            this._storeAssertionCommand(command);
+        }
+    }
+
+    private _storeActionCallsitesForExecutedAsyncJsExpression (callsite: CallsiteRecord): void {
         // @ts-ignore
-        const { timeout: commandTimeout } = command.options;
+        if (callsite?.filename !== ERROR_FILENAME)
+            return;
 
-        return commandTimeout === void 0
-            ? this._options.assertionTimeout
-            : commandTimeout;
+        const id = generateUniqueId();
+
+        // @ts-ignore
+        callsite.id = id;
+
+        this.asyncJsExpressionCallsites.set(id, callsite as CallsiteRecord);
     }
 
-    private async _executeAssertion (command: AssertionCommand, callsite: unknown): Promise<unknown> {
-        const assertionTimeout = this._getAssertionTimeout(command);
+    public async executeAction (apiMethodName: string, command: CommandBase, callsite: CallsiteRecord): Promise<unknown> {
+        this._storeActionCallsitesForExecutedAsyncJsExpression(callsite);
 
-        const executor = new AssertionExecutor(command, assertionTimeout, callsite);
+        if (command.type === COMMAND_TYPE.assertion)
+            this._handleAssertionCommand(command as AssertionCommand);
+        else if (command.type === COMMAND_TYPE.useRole)
+            this.dispatcher.onRoleAppeared((command as UseRoleCommand).role);
 
-        executor.once('start-assertion-retries', timeout => this.executeCommand(new serviceCommands.ShowAssertionRetriesStatusCommand(timeout)));
-        executor.once('end-assertion-retries', success => this.executeCommand(new serviceCommands.HideAssertionRetriesStatusCommand(success)));
-
-        return executor.run();
-    }
-
-    private getHook (hookId: string): RequestHook | undefined {
-        return this._requestHooks.find(hook => hook.id === hookId);
-    }
-
-    public async executeAction (apiMethodName: string, command: unknown, callsite: unknown): Promise<unknown> {
-        if (callsite)
-            callsite = prerenderCallsite(callsite);
-
-        if ((command as CommandBase).type === COMMAND_TYPE.assertion)
-            return this._executeAssertion(command as AssertionCommand, callsite);
-
-        return this.dispatcher.executeAction({ apiMethodName, command, callsite, id: this.id });
-    }
-
-    public async executeCommand (command: unknown): Promise<unknown> {
-        return this.dispatcher.executeCommand({ command, id: this.id });
-    }
-
-    public initializeRequestHooks (test: Test): void {
-        this._requestHooks = Array.from(test.requestHooks);
-
-        this._requestHooks.forEach(requestHook => {
-            requestHook._warningLog = this.warningLog;
+        return this.dispatcher.executeAction({
+            apiMethodName,
+            command,
+            callsite,
+            id: this.id,
         });
     }
 
-    public async onRequestHookEvent ({ hookId, name, eventData }: RequestHookEventDescriptor): Promise<RequestHook> {
-        const targetHook = this.getHook(hookId) as RequestHook;
+    public executeActionSync (apiMethodName: string, command: CommandBase, callsite: CallsiteRecord): unknown {
+        if (command.type === COMMAND_TYPE.assertion)
+            this._handleAssertionCommand(command as AssertionCommand);
+        else if (command.type === COMMAND_TYPE.useRole)
+            this.dispatcher.onRoleAppeared((command as UseRoleCommand).role);
 
-        // @ts-ignore
-        await targetHook[name].call(targetHook, eventData);
+        return this.dispatcher.executeActionSync({
+            apiMethodName,
+            command,
+            callsite,
+            id: this.id,
+        });
+    }
 
-        return targetHook;
+    public async executeCommand (command: CommandBase, callsite?: string): Promise<unknown> {
+        if (command.type === COMMAND_TYPE.assertion)
+            this._handleAssertionCommand(command as AssertionCommand);
+
+        return this.dispatcher.executeCommand({
+            command,
+            callsite,
+            id: this.id,
+        });
+    }
+
+    public async addRequestHook (hook: RequestHook): Promise<void> {
+        if (this.test.requestHooks.includes(hook))
+            return;
+
+        this.test.requestHooks.push(hook);
+        this._attachWarningLog(hook);
+
+        await this.dispatcher.addRequestEventListeners({
+            hookId:        hook.id,
+            hookClassName: hook._className,
+            rules:         hook._requestFilterRules,
+        });
+    }
+
+    public async removeRequestHook (hook: RequestHook): Promise<void> {
+        if (!this.test.requestHooks.includes(hook))
+            return;
+
+        pull(this.test.requestHooks, hook);
+        this._detachWarningLog(hook);
+
+        await this.dispatcher.removeRequestEventListeners({ rules: hook._requestFilterRules });
+    }
+
+    public async getAssertionActualValue (commandId: string): Promise<unknown> {
+        const command = this.assertionCommands.get(commandId) as AssertionCommand;
+
+        return (command.actual as ReExecutablePromise)._reExecute();
+    }
+
+    public async executeAssertionFn (commandId: string): Promise<unknown> {
+        const command = this.assertionCommands.get(commandId) as AssertionCommand;
+
+        command.actual = command.originActual;
+
+        const fn = getFn(command);
+
+        return await fn();
+    }
+
+    public restoreOriginCallsiteForError (err: UncaughtTestCafeErrorInCustomScript): void {
+        err.errCallsite = this.asyncJsExpressionCallsites.get(err.errCallsite.id);
+
+        this.asyncJsExpressionCallsites.clear();
     }
 }
 

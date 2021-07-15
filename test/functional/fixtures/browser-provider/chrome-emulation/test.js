@@ -1,5 +1,4 @@
 const path                 = require('path');
-const chai                 = require('chai');
 const { expect }           = require('chai');
 const config               = require('../../../config');
 const { createNullStream } = require('../../../utils/stream');
@@ -8,8 +7,6 @@ const os                   = require('os-family');
 const detectDisplay        = require('../../../../../lib/utils/detect-display');
 
 const isLinuxWithoutGUI = os.linux && !detectDisplay();
-
-chai.use(require('chai-string'));
 
 if (config.useLocalBrowsers) {
     describe('Browser Provider - Chrome Emulation Mode', () => {
@@ -26,9 +23,11 @@ if (config.useLocalBrowsers) {
                 expect(failedCount).eql(0);
             }
 
-            it('headless', () => {
-                return checkTouchEmulation('chrome:headless:emulation:device=iphone 6 --no-sandbox');
-            });
+            if (!config.isProxyless) {
+                it('headless', () => {
+                    return checkTouchEmulation('chrome:headless:emulation:device=iphone 6 --no-sandbox');
+                });
+            }
 
             if (!isLinuxWithoutGUI) {
                 it('non-headless', () => {
@@ -43,7 +42,7 @@ if (config.useLocalBrowsers) {
             const reporter = createReporter({
                 reportTaskStart (startTime, userAgents) {
                     prettyUserAgents = userAgents;
-                }
+                },
             });
 
             await testCafe

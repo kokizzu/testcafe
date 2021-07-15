@@ -9,7 +9,7 @@ import WARNING_MESSAGES from '../notifications/warning-message';
 import {
     getPluralSuffix,
     getConcatenatedValuesString,
-    getToBeInPastTense
+    getToBeInPastTense,
 } from '../utils/string';
 
 import TestRunVideoRecorder from './test-run-video-recorder';
@@ -126,19 +126,25 @@ export default class VideoRecorder extends EventEmitter {
         const recordingOptions = {
             path:            this.tempDirectory.path,
             ffmpegPath:      this.ffmpegPath,
-            encodingOptions: this.encodingOptions
+            encodingOptions: this.encodingOptions,
         };
 
         const testRunVideoRecorder = this._createTestRunVideoRecorder(testRunInfo, recordingOptions);
         const isVideoSupported     = await testRunVideoRecorder.isVideoSupported();
 
-        if (isVideoSupported) {
-            await testRunVideoRecorder.init();
-
-            this.testRunVideoRecorders[testRunVideoRecorder.index] = testRunVideoRecorder;
-        }
-        else
+        if (!isVideoSupported) {
             this.warningLog.addWarning(WARNING_MESSAGES.videoNotSupportedByBrowser, testRunVideoRecorder.testRunInfo.alias);
+            return;
+        }
+
+        const isVideoEnabled = await testRunVideoRecorder.isVideoEnabled();
+
+        if (!isVideoEnabled)
+            return;
+
+        await testRunVideoRecorder.init();
+
+        this.testRunVideoRecorders[testRunVideoRecorder.index] = testRunVideoRecorder;
     }
 
     _createTestRunVideoRecorder (testRunInfo, recordingOptions) {

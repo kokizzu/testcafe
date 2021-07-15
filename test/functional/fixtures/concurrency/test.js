@@ -3,6 +3,8 @@ const { expect }         = require('chai');
 const isCI               = require('is-ci');
 const config             = require('../../config');
 const { createReporter } = require('../../utils/reporter');
+const timeline           = require('./timeline');
+
 
 if (config.useLocalBrowsers) {
     describe('Concurrency', function () {
@@ -35,7 +37,7 @@ if (config.useLocalBrowsers) {
 
                     end: function (newData) {
                         data += newData;
-                    }
+                    },
                 })
                 .browsers(browsers)
                 .concurrency(concurrency)
@@ -72,30 +74,28 @@ if (config.useLocalBrowsers) {
 
             reportFixtureStart: function (name) {
                 this.write('Fixture ' + name + ' started').newline();
-            }
+            },
         });
 
         beforeEach(function () {
-            global.timeline = [];
-
             data = '';
         });
 
-        afterEach(function () {
-            delete global.timeline;
+        afterEach(() => {
+            timeline.delete();
         });
 
         it('Should run tests sequentially if concurrency = 1', function () {
             return run('chrome:headless --no-sandbox', 1, './testcafe-fixtures/sequential-test.js')
                 .then(() => {
-                    expect(global.timeline).eql(['long started', 'long finished', 'short started', 'short finished']);
+                    expect(timeline.getData()).eql(['long started', 'long finished', 'short started', 'short finished']);
                 });
         });
 
         it('Should run tests concurrently if concurrency > 1', function () {
             return run('chrome:headless --no-sandbox', 2, './testcafe-fixtures/concurrent-test.js')
                 .then(() => {
-                    expect(global.timeline).eql(['test started', 'test started', 'short finished', 'long finished']);
+                    expect(timeline.getData()).eql(['test started', 'test started', 'short finished', 'long finished']);
                 });
         });
 
@@ -104,9 +104,11 @@ if (config.useLocalBrowsers) {
             it('Should run tests concurrently in different browser kinds', function () {
                 return run(['chrome:headless --no-sandbox', 'chrome:headless --no-sandbox --user-agent="TestAgent"'], 2, './testcafe-fixtures/multibrowser-concurrent-test.js')
                     .then(() => {
-                        expect(Object.keys(global.timeline).length).gt(1);
+                        const timelineData = timeline.getData();
 
-                        for (const browserTimeline of Object.values(global.timeline))
+                        expect(Object.keys(timelineData).length).gt(1);
+
+                        for (const browserTimeline of Object.values(timelineData))
                             expect(browserTimeline).eql(['test started', 'test started', 'short finished', 'long finished']);
                     });
             });
@@ -121,7 +123,7 @@ if (config.useLocalBrowsers) {
                         'Test Long test done',
                         'Fixture Multifixture B started',
                         'Test Short test done',
-                        ''
+                        '',
                     ]);
                 });
         });
@@ -135,7 +137,7 @@ if (config.useLocalBrowsers) {
                     throw new Error('Promise rejection expected');
                 })
                 .catch(function (error) {
-                    expect(error.message).eql('The number of remote browsers should be divisible by the factor of concurrency.');
+                    expect(error.message).eql('The number of remote browsers should be divisible by the concurrency factor.');
                 });
         });
     });

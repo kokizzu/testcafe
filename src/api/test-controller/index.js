@@ -4,7 +4,7 @@ import {
     identity,
     assign,
     isNil as isNullOrUndefined,
-    flattenDeep as flatten
+    flattenDeep as flatten,
 } from 'lodash';
 
 import { getCallsiteForMethod } from '../../errors/get-callsite';
@@ -12,7 +12,6 @@ import ClientFunctionBuilder from '../../client-functions/client-function-builde
 import Assertion from './assertion';
 import { getDelegatedAPIList, delegateAPI } from '../../utils/delegated-api';
 import WARNING_MESSAGE from '../../notifications/warning-message';
-import getBrowser from '../../utils/get-browser';
 import addWarning from '../../notifications/add-rendered-warning';
 import { getCallsiteId, getCallsiteStackFrameString } from '../../utils/callsite';
 import { getDeprecationMessage, DEPRECATED } from '../../notifications/deprecated';
@@ -50,7 +49,7 @@ import {
     ScrollByCommand,
     ScrollIntoViewCommand,
     UseRoleCommand,
-    DispatchEventCommand
+    DispatchEventCommand,
 } from '../../test-run/commands/actions';
 
 import {
@@ -58,20 +57,23 @@ import {
     TakeElementScreenshotCommand,
     ResizeWindowCommand,
     ResizeWindowToFitDeviceCommand,
-    MaximizeWindowCommand
+    MaximizeWindowCommand,
 } from '../../test-run/commands/browser-manipulation';
 
 import { WaitCommand, DebugCommand } from '../../test-run/commands/observation';
 import assertRequestHookType from '../request-hooks/assert-type';
 import { createExecutionContext as createContext } from './execution-context';
 import { isClientFunction, isSelector } from '../../client-functions/types';
+import TestRunProxy from '../../services/compiler/test-run-proxy';
 
 import {
     MultipleWindowsModeIsDisabledError,
-    MultipleWindowsModeIsNotAvailableInRemoteBrowserError
+    MultipleWindowsModeIsNotAvailableInRemoteBrowserError,
 } from '../../errors/test-run';
 
 const originalThen = Promise.resolve().then;
+
+let inDebug = false;
 
 export default class TestController {
     constructor (testRun) {
@@ -107,7 +109,7 @@ export default class TestController {
 
         delegateAPI(extendedPromise, TestController.API_LIST, {
             handler:     this,
-            proxyMethod: markCallsiteAwaited
+            proxyMethod: markCallsiteAwaited,
         });
 
         return extendedPromise;
@@ -186,7 +188,7 @@ export default class TestController {
     }
 
     _browser$getter () {
-        return getBrowser(this.testRun.browserConnection);
+        return this.testRun.browser;
     }
 
     _dispatchEvent$ (selector, eventName, options = {}) {
@@ -285,7 +287,7 @@ export default class TestController {
             startPos,
             endLine,
             endPos,
-            options
+            options,
         });
     }
 
@@ -293,7 +295,7 @@ export default class TestController {
         return this._enqueueCommand('selectEditableContent', SelectEditableContentCommand, {
             startSelector,
             endSelector,
-            options
+            options,
         });
     }
 
@@ -434,7 +436,7 @@ export default class TestController {
 
     _setNativeDialogHandler$ (fn, options) {
         return this._enqueueCommand('setNativeDialogHandler', SetNativeDialogHandlerCommand, {
-            dialogHandler: { fn, options }
+            dialogHandler: { fn, options },
         });
     }
 
@@ -481,7 +483,9 @@ export default class TestController {
     }
 
     _debug$ () {
-        return this._enqueueCommand('debug', DebugCommand);
+        // NOTE: do not need to enqueue the Debug command if we are in compiler service debugging mode
+        // the Debug command will be executed by CDP
+        return this.isCompilerServiceMode() ? void 0 : this._enqueueCommand('debug', DebugCommand);
     }
 
     _setTestSpeed$ (speed) {
@@ -516,6 +520,37 @@ export default class TestController {
 
             hooks.forEach(hook => this.testRun.removeRequestHook(hook));
         });
+    }
+
+    static enableDebugForNonDebugCommands () {
+        inDebug = true;
+    }
+
+    static disableDebugForNonDebugCommands () {
+        inDebug = false;
+    }
+
+    shouldStop (command) {
+        // NOTE: should never stop in not compliler debugging mode
+        if (!this.isCompilerServiceMode())
+            return false;
+
+        // NOTE: should always stop on Debug command
+        if (command === 'debug')
+            return true;
+
+        // NOTE: should stop on other actions after the `Next Action` button is clicked
+        if (inDebug) {
+            inDebug = false;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    isCompilerServiceMode () {
+        return this.testRun instanceof TestRunProxy;
     }
 }
 

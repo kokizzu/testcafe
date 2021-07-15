@@ -10,7 +10,7 @@ describe('Request Hooks', () => {
             return runTests('./testcafe-fixtures/request-mock/failed-cors-validation.js', 'Failed CORS validation', { only: 'chrome' })
                 .then(() => {
                     expect(testReport.warnings).eql([
-                        'RequestMock: CORS validation failed for a request specified as { url: "http://dummy-url.com/get" }'
+                        'RequestMock: CORS validation failed for a request specified as { url: "http://dummy-url.com/get" }',
                     ]);
                 });
         });
@@ -31,6 +31,10 @@ describe('Request Hooks', () => {
 
         it('Multi-browser', () => {
             return runTests('./testcafe-fixtures/request-logger/multi-browser.js', 'Multi-browser');
+        });
+
+        it('Request filter rule predicate', () => {
+            return runTests('./testcafe-fixtures/request-logger/request-filter-rule-predicate.js', null, { only: 'chrome' });
         });
     });
 
@@ -69,6 +73,10 @@ describe('Request Hooks', () => {
 
         it('Change and remove response headers', () => {
             return runTests('./testcafe-fixtures/api/change-remove-response-headers.js', null, { only: 'chrome' });
+        });
+
+        it('Request hook events should be represented as appropriate classes', () => {
+            return runTests('./testcafe-fixtures/api/request-hook-events.js', null, { only: 'chrome' });
         });
     });
 });

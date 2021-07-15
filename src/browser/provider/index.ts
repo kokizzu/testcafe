@@ -8,7 +8,7 @@ import delay from '../../utils/delay';
 import {
     GET_IS_SERVICE_WORKER_ENABLED,
     GET_TITLE_SCRIPT,
-    GET_WINDOW_DIMENSIONS_INFO_SCRIPT
+    GET_WINDOW_DIMENSIONS_INFO_SCRIPT,
 } from './utils/client-functions';
 import WARNING_MESSAGE from '../../notifications/warning-message';
 import { Dictionary } from '../../configuration/interfaces';
@@ -20,7 +20,7 @@ const BROWSER_OPENING_DELAY = 2000;
 
 const RESIZE_DIFF_SIZE = {
     width:  100,
-    height: 100
+    height: 100,
 };
 
 interface Size {
@@ -37,14 +37,14 @@ interface LocalBrowserInfo {
 function sumSizes (sizeA: Size, sizeB: Size): Size {
     return {
         width:  sizeA.width + sizeB.width,
-        height: sizeA.height + sizeB.height
+        height: sizeA.height + sizeB.height,
     };
 }
 
 function subtractSizes (sizeA: Size, sizeB: Size): Size {
     return {
         width:  sizeA.width - sizeB.width,
-        height: sizeA.height - sizeB.height
+        height: sizeA.height - sizeB.height,
     };
 }
 
@@ -71,7 +71,7 @@ export default class BrowserProvider {
         this.localBrowsersInfo[browserId] = {
             windowDescriptor:  null,
             maxScreenSize:     null,
-            resizeCorrections: null
+            resizeCorrections: null,
         };
     }
 
@@ -157,7 +157,7 @@ export default class BrowserProvider {
         if (this.localBrowsersInfo[browserId]) {
             this.localBrowsersInfo[browserId].maxScreenSize = {
                 width:  sizeInfo.availableWidth - (sizeInfo.outerWidth - sizeInfo.width),
-                height: sizeInfo.availableHeight - (sizeInfo.outerHeight - sizeInfo.height)
+                height: sizeInfo.availableHeight - (sizeInfo.outerHeight - sizeInfo.height),
             };
         }
     }
@@ -310,8 +310,8 @@ export default class BrowserProvider {
         return this.plugin.isHeadlessBrowser(browserId, browserName);
     }
 
-    public async openBrowser (browserId: string, pageUrl: string, browserName: string, disableMultipleWindows: boolean): Promise<void> {
-        await this.plugin.openBrowser(browserId, pageUrl, browserName, disableMultipleWindows);
+    public async openBrowser (browserId: string, pageUrl: string, browserOption: unknown, disableMultipleWindows: boolean, isProxyless: boolean): Promise<void> {
+        await this.plugin.openBrowser(browserId, pageUrl, browserOption, disableMultipleWindows, isProxyless);
 
         await this._ensureRetryTestPagesWarning(browserId);
 
@@ -399,6 +399,18 @@ export default class BrowserProvider {
             await this._takeLocalBrowserScreenshot(browserId, screenshotPath);
         else
             await this.plugin.takeScreenshot(browserId, screenshotPath, pageWidth, pageHeight, fullPage);
+    }
+
+    public async executeClientFunction (browserId: string, command: any, callsite: any): Promise<any> {
+        return this.plugin.executeClientFunction(browserId, command, callsite);
+    }
+
+    public async switchToIframe (browserId: string): Promise<void> {
+        return this.plugin.switchToIframe(browserId);
+    }
+
+    public switchToMainWindow (browserId: string): Promise<void> {
+        return this.plugin.switchToMainWindow(browserId);
     }
 
     public async getVideoFrameData (browserId: string): Promise<any> {

@@ -15,6 +15,7 @@ export default class DriverStatus extends Assignable {
         this.consoleMessages                    = null;
         this.isPendingWindowSwitching           = false;
         this.isFirstRequestAfterWindowSwitching = false;
+        this.debug                              = '';
 
         this._assignFrom(obj, true);
     }
@@ -27,7 +28,7 @@ export default class DriverStatus extends Assignable {
             { name: 'result' },
             { name: 'consoleMessages' },
             { name: 'isPendingWindowSwitching' },
-            { name: 'isFirstRequestAfterWindowSwitching' }
+            { name: 'isFirstRequestAfterWindowSwitching' },
         ];
     }
 }

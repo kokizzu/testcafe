@@ -1,5 +1,5 @@
-const expect = require('chai').expect;
-const actual = require('./actual').actual;
+const { expect } = require('chai');
+const actual     = require('./actual');
 
 const expected = [
     '1 begin before',
@@ -11,14 +11,18 @@ const expected = [
     '2 end before',
     '2',
     '2 begin after',
-    '2 end after'
+    '2 end after',
 ];
 
 describe('[Regression](GH-3298) - Fixture hooks of subsequent tests should not overlap each other', function () {
+    afterEach(() => {
+        actual.delete();
+    });
+
     it('Run two tests with fixture hooks in sequence', function () {
         return runTests('testcafe-fixtures/index.js', null, { only: ['chrome'] })
             .then(() => {
-                expect(actual).eql(expected);
+                expect(actual.getData()).eql(expected);
             });
     });
 });

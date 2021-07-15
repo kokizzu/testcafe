@@ -1,38 +1,19 @@
-const proxyquire = require('proxyquire');
-const { noop }   = require('lodash');
-const nanoid     = require('nanoid');
-const expect     = require('chai').expect;
-
-const SessionControllerStub = { getSession: () => {
-    return { id: nanoid(7) };
-} };
-
-const TestRun        = proxyquire('../../lib/test-run/index', { './session-controller': SessionControllerStub });
-const TestController = require('../../lib/api/test-controller');
-const COMMAND_TYPE   = require('../../lib/test-run/commands/type');
-const markerSymbol   = require('../../lib/test-run/marker-symbol');
-
+const { noop }                   = require('lodash');
+const proxyquire                 = require('proxyquire');
+const { expect }                 = require('chai');
+const TestController             = require('../../lib/api/test-controller');
+const COMMAND_TYPE               = require('../../lib/test-run/commands/type');
+const markerSymbol               = require('../../lib/test-run/marker-symbol');
 const assertTestRunError         = require('./helpers/assert-test-run-error');
 const { createSimpleTestStream } = require('../functional/utils/stream');
+const BaseTestRunMock            = require('./helpers/base-test-run-mock');
 
 let callsite = 0;
 
-class TestRunMock extends TestRun {
-    _addInjectables () {}
-
-    _initRequestHooks () {}
-
-    get id () {
-        return 'test-run-id';
-    }
-
+class TestRunMock extends BaseTestRunMock {
     constructor () {
         super({
-            test:               { name: 'Test', testFile: { filename: __filename } },
-            browserConnection:  {},
-            screenshotCapturer: {},
-            globalWarningLog:   {},
-            opts:               {}
+            test: { name: 'Test', testFile: { filename: __filename } },
         });
 
         this.debugLog        = { command: noop };
@@ -52,7 +33,10 @@ class TestRunMock extends TestRun {
 
         this.browserConnection = {
             isHeadlessBrowser: () => false,
-            userAgent:         'Chrome'
+            userAgent:         'Chrome',
+            provider:          {
+                hasCustomActionForBrowser () { },
+            },
         };
     }
 }
@@ -62,7 +46,7 @@ async function executeAsyncExpression (expression, testRun = new TestRunMock()) 
 
     return await testRun.executeCommand({
         type: COMMAND_TYPE.executeAsyncExpression,
-        expression
+        expression,
     }, callsite.toString());
 }
 
@@ -70,7 +54,7 @@ async function executeExpression (expression, customVarName, testRun = new TestR
     return testRun.executeCommand({
         type:               COMMAND_TYPE.executeExpression,
         resultVariableName: customVarName,
-        expression
+        expression,
     });
 }
 

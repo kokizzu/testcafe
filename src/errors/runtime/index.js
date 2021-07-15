@@ -40,7 +40,7 @@ export class TestCompilationError extends Error {
 
         Object.assign(this, {
             code: RUNTIME_ERRORS.cannotPrepareTestsDueToError,
-            data: [errorMessage]
+            data: [errorMessage],
         });
 
         // NOTE: stack includes message as well.
@@ -70,19 +70,19 @@ export class APIError extends Error {
         // that cannot override the instance property created by the Error parent class.
         Object.defineProperties(this, {
             'stack': {
-                get: () => this._createStack(renderers.noColor)
+                get: () => this._createStack(renderers.noColor),
             },
 
             'coloredStack': {
-                get: () => this._createStack(renderers.default)
-            }
+                get: () => this._createStack(renderers.default),
+            },
         });
     }
 
     _createStack (renderer) {
         const renderedCallsite = renderCallsiteSync(this.callsite, {
             renderer:    renderer,
-            stackFilter: createStackFilter(Error.stackTraceLimit)
+            stackFilter: createStackFilter(Error.stackTraceLimit),
         });
 
         if (!renderedCallsite)
@@ -124,7 +124,7 @@ export class ReporterPluginError extends GeneralError {
     constructor ({ name, method, originalError }) {
         const code = RUNTIME_ERRORS.uncaughtErrorInReporter;
 
-        super(code, name, method, originalError.stack);
+        super(code, method, name, originalError.stack);
     }
 }
 

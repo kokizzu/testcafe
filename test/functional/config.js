@@ -1,12 +1,9 @@
-const os = require('os');
-
-const isAzureEnvironment = !!process.env.TF_BUILD;
-const hostname           = isAzureEnvironment ? os.hostname() : '127.0.0.1';
+const hostname = process.env.USE_PUBLIC_HOSTNAME ? process.env.HOSTNAME : '127.0.0.1';
 
 const browserProviderNames = {
     sauceLabs:    'sauceLabs',
     browserstack: 'browserstack',
-    remote:       'remote'
+    remote:       'remote',
 };
 
 const testingEnvironmentNames = {
@@ -19,7 +16,7 @@ const testingEnvironmentNames = {
     localHeadlessChrome:         'local-headless-chrome',
     localHeadlessFirefox:        'local-headless-firefox',
     remote:                      'remote',
-    legacy:                      'legacy'
+    legacy:                      'legacy',
 };
 
 const testingEnvironments = {};
@@ -30,27 +27,27 @@ testingEnvironments[testingEnvironmentNames.osXDesktopAndMSEdgeBrowsers] = {
 
     browserstack: {
         username:  process.env.BROWSER_STACK_USERNAME,
-        accessKey: process.env.BROWSER_STACK_ACCESS_KEY
+        accessKey: process.env.BROWSER_STACK_ACCESS_KEY,
     },
 
     browsers: [
         {
             browserName: 'browserstack:safari@11.1:OS X High Sierra',
-            alias:       'safari'
+            alias:       'safari',
         },
         {
             browserName: 'browserstack:chrome@80:OS X High Sierra',
-            alias:       'chrome-osx'
+            alias:       'chrome-osx',
         },
         {
             browserName: 'browserstack:firefox@72:OS X High Sierra',
-            alias:       'firefox-osx'
+            alias:       'firefox-osx',
         },
         {
             browserName: 'browserstack:edge:OS X High Sierra',
-            alias:       'edge'
-        }
-    ]
+            alias:       'edge',
+        },
+    ],
 };
 
 testingEnvironments[testingEnvironmentNames.mobileBrowsers] = {
@@ -59,19 +56,19 @@ testingEnvironments[testingEnvironmentNames.mobileBrowsers] = {
 
     browserstack: {
         username:  process.env.BROWSER_STACK_USERNAME,
-        accessKey: process.env.BROWSER_STACK_ACCESS_KEY
+        accessKey: process.env.BROWSER_STACK_ACCESS_KEY,
     },
 
     browsers: [
         {
             browserName: 'browserstack:iPad Pro 12.9 2017@11',
-            alias:       'ipad'
+            alias:       'ipad',
         },
         {
             browserName: 'browserstack:iPhone 7 Plus@10',
-            alias:       'iphone'
-        }
-    ]
+            alias:       'iphone',
+        },
+    ],
 };
 
 testingEnvironments[testingEnvironmentNames.localBrowsers] = {
@@ -81,20 +78,20 @@ testingEnvironments[testingEnvironmentNames.localBrowsers] = {
         {
             platform:    'Windows 10',
             browserName: 'chrome',
-            alias:       'chrome'
+            alias:       'chrome',
         },
         {
             platform:    'Windows 10',
             browserName: 'ie',
             version:     '11.0',
-            alias:       'ie'
+            alias:       'ie',
         },
         {
             platform:    'Windows 10',
             browserName: 'firefox',
-            alias:       'firefox'
-        }
-    ]
+            alias:       'firefox',
+        },
+    ],
 };
 
 testingEnvironments[testingEnvironmentNames.localChrome] = {
@@ -104,9 +101,9 @@ testingEnvironments[testingEnvironmentNames.localChrome] = {
         {
             platform:    'Windows 10',
             browserName: 'chrome',
-            alias:       'chrome'
-        }
-    ]
+            alias:       'chrome',
+        },
+    ],
 };
 
 testingEnvironments[testingEnvironmentNames.localBrowsersIE] = {
@@ -117,9 +114,9 @@ testingEnvironments[testingEnvironmentNames.localBrowsersIE] = {
             platform:    'Windows 10',
             browserName: 'ie',
             version:     '11.0',
-            alias:       'ie'
-        }
-    ]
+            alias:       'ie',
+        },
+    ],
 };
 
 testingEnvironments[testingEnvironmentNames.localBrowsersChromeFirefox] = {
@@ -129,14 +126,14 @@ testingEnvironments[testingEnvironmentNames.localBrowsersChromeFirefox] = {
         {
             platform:    'Windows 10',
             browserName: 'chrome',
-            alias:       'chrome'
+            alias:       'chrome',
         },
         {
             platform:    'Windows 10',
             browserName: 'firefox',
-            alias:       'firefox'
-        }
-    ]
+            alias:       'firefox',
+        },
+    ],
 };
 
 testingEnvironments[testingEnvironmentNames.localHeadlessChrome] = {
@@ -150,9 +147,9 @@ testingEnvironments[testingEnvironmentNames.localHeadlessChrome] = {
             platform:    'Windows 10',
             browserName: 'chrome:headless --no-sandbox',
             userAgent:   'headlesschrome',
-            alias:       'chrome'
-        }
-    ]
+            alias:       'chrome',
+        },
+    ],
 };
 
 testingEnvironments[testingEnvironmentNames.localHeadlessFirefox] = {
@@ -165,9 +162,9 @@ testingEnvironments[testingEnvironmentNames.localHeadlessFirefox] = {
         {
             platform:    'Windows 10',
             browserName: 'firefox:headless:disableMultiprocessing=true',
-            alias:       'firefox'
-        }
-    ]
+            alias:       'firefox',
+        },
+    ],
 };
 
 testingEnvironments[testingEnvironmentNames.remote] = {
@@ -181,8 +178,8 @@ testingEnvironments[testingEnvironmentNames.remote] = {
 
         get alias () {
             return process.env.BROWSER_ALIAS || 'chrome';
-        }
-    }]
+        },
+    }],
 };
 
 testingEnvironments[testingEnvironmentNames.legacy] = {
@@ -194,9 +191,9 @@ testingEnvironments[testingEnvironmentNames.legacy] = {
             platform:    'Windows 10',
             browserName: 'chrome:headless --no-sandbox',
             userAgent:   'headlesschrome',
-            alias:       'chrome'
-        }
-    ]
+            alias:       'chrome',
+        },
+    ],
 };
 
 module.exports = {
@@ -221,14 +218,16 @@ module.exports = {
     },
 
     get devMode () {
-        return !!process.env.DEV_MODE;
+        return process.env.DEV_MODE === 'true';
+    },
+
+    get isProxyless () {
+        return process.env.PROXYLESS === 'true';
     },
 
     get retryTestPages () {
         return this.currentEnvironment.retryTestPages;
     },
-
-    isAzureEnvironment,
 
     testingEnvironmentNames,
     testingEnvironments,
@@ -237,7 +236,7 @@ module.exports = {
     testCafe: {
         hostname: hostname,
         port1:    9000,
-        port2:    9001
+        port2:    9001,
     },
 
     site: {
@@ -248,8 +247,8 @@ module.exports = {
             basicAuthServer:        3002,
             ntlmAuthServer:         3003,
             trustedProxyServer:     3004,
-            transparentProxyServer: 3005
-        }
+            transparentProxyServer: 3005,
+        },
     },
 
     browserstackConnectorServicePort: 9200,
@@ -257,5 +256,5 @@ module.exports = {
     browsers: [],
 
     testScreenshotsDir: '___test-screenshots___',
-    testVideosDir:      '___test-videos___'
+    testVideosDir:      '___test-videos___',
 };

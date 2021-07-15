@@ -5,7 +5,7 @@ import {
     ResponseEvent,
     RequestFilterRule,
     RequestFilterRuleInit,
-    generateUniqueId
+    generateUniqueId,
 } from 'testcafe-hammerhead';
 
 import { RequestHookNotImplementedMethodError } from '../../errors/test-run';
@@ -16,13 +16,15 @@ export default abstract class RequestHook {
     public _requestFilterRules: RequestFilterRule[];
     public readonly _responseEventConfigureOpts?: ConfigureResponseEventOptions;
     public _warningLog: WarningLog | null;
-    public id: string;
+    public readonly id: string;
+    public _className: string;
 
     protected constructor (ruleInit?: RequestFilterRuleInit | RequestFilterRuleInit[], responseEventConfigureOpts?: ConfigureResponseEventOptions) {
         this._requestFilterRules         = this._prepareRules(ruleInit);
         this._responseEventConfigureOpts = responseEventConfigureOpts;
         this._warningLog                 = null;
         this.id                          = generateUniqueId();
+        this._className                  = this.constructor.name;
     }
 
     private _prepareRules (ruleInit?: RequestFilterRuleInit | RequestFilterRuleInit[]): RequestFilterRule[] {
@@ -34,11 +36,11 @@ export default abstract class RequestHook {
         return !rules.length ? [RequestFilterRule.ANY] : rules;
     }
 
-    protected async onRequest (event: RequestEvent): Promise<void> { // eslint-disable-line @typescript-eslint/no-unused-vars
+    public async onRequest (event: RequestEvent): Promise<void> { // eslint-disable-line @typescript-eslint/no-unused-vars
         throw new RequestHookNotImplementedMethodError('onRequest', this.constructor.name);
     }
 
-    private async _onConfigureResponse (event: ConfigureResponseEvent): Promise<void> {
+    public async _onConfigureResponse (event: ConfigureResponseEvent): Promise<void> {
         if (!this._responseEventConfigureOpts)
             return;
 
@@ -46,7 +48,7 @@ export default abstract class RequestHook {
         event.opts.includeBody    = this._responseEventConfigureOpts.includeBody;
     }
 
-    protected async onResponse (event: ResponseEvent): Promise<void> { // eslint-disable-line @typescript-eslint/no-unused-vars
+    public async onResponse (event: ResponseEvent): Promise<void> { // eslint-disable-line @typescript-eslint/no-unused-vars
         throw new RequestHookNotImplementedMethodError('onResponse', this.constructor.name);
     }
 }

@@ -12,7 +12,7 @@ let errors = null;
 const reporter = createReporter({
     reportTestDone (name, testRunInfo) {
         errors = testRunInfo.errs;
-    }
+    },
 });
 
 function createConnection (browser) {
@@ -64,7 +64,7 @@ function run (pathToTest, filter, initializeConnection = initializeConnectionLow
 }
 
 describe('Browser reconnect', function () {
-    if (config.useLocalBrowsers) {
+    if (config.useLocalBrowsers && !config.isProxyless) {
         it('Should restart browser when it does not respond', function () {
             return run('./testcafe-fixtures/index-test.js', 'Should restart browser when it does not respond')
                 .then(() => {
@@ -85,7 +85,7 @@ describe('Browser reconnect', function () {
                 proc.on('close', resolve);
             })
                 .then(() => {
-                    expect(errLog).contains('"chrome:headless" has disconnected during test execution');
+                    expect(errLog).contains('"chrome:headless" disconnected during test execution');
                 });
         });
 
@@ -95,7 +95,7 @@ describe('Browser reconnect', function () {
                     throw new Error('Test should have failed but it succeeded');
                 })
                 .catch(err => {
-                    expect(err.message).contains('browser disconnected. This problem may appear when a browser hangs or is closed, or due to network issues');
+                    expect(err.message).contains('browser disconnected. If you did not close the browser yourself, browser performance or network issues may be at fault.');
                 });
         });
 

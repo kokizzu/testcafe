@@ -3,9 +3,9 @@ import { RUNTIME_ERRORS } from './errors/types';
 import CONTENT_TYPES from './assets/content-types';
 import OPTION_NAMES from './configuration/option-names';
 import * as INJECTABLES from './assets/injectables';
+import setupSourceMapSupport from './utils/setup-sourcemap-support';
 
 const lazyRequire              = require('import-lazy')(require);
-const sourceMapSupport         = lazyRequire('source-map-support');
 const hammerhead               = lazyRequire('testcafe-hammerhead');
 const loadAssets               = lazyRequire('./load-assets');
 const errorHandlers            = lazyRequire('./utils/handle-errors');
@@ -21,7 +21,7 @@ require('coffeescript');
 
 export default class TestCafe {
     constructor (configuration) {
-        this._setupSourceMapsSupport();
+        setupSourceMapSupport();
         errorHandlers.registerErrorHandlers();
 
         const { hostname, port1, port2, options } = configuration.startOptions;
@@ -32,7 +32,7 @@ export default class TestCafe {
         this.runners                  = [];
         this.configuration            = configuration;
 
-        this.compilerService = configuration.getOption(OPTION_NAMES.experimentalCompilerService) ? new CompilerHost() : void 0;
+        this.compilerService = configuration.getOption(OPTION_NAMES.experimentalCompilerService) ? new CompilerHost(options) : void 0;
 
         this._registerAssets(options.developmentMode);
     }
@@ -46,7 +46,7 @@ export default class TestCafe {
 
         this.proxy.GET(INJECTABLES.TESTCAFE_LEGACY_RUNNER, {
             content:     legacyRunnerScript,
-            contentType: CONTENT_TYPES.javascript
+            contentType: CONTENT_TYPES.javascript,
         });
 
         this.proxy.GET(INJECTABLES.TESTCAFE_AUTOMATION, { content: automationScript, contentType: CONTENT_TYPES.javascript });
@@ -58,15 +58,7 @@ export default class TestCafe {
         this.proxy.GET(INJECTABLES.TESTCAFE_UI_STYLES, {
             content:              uiStyle,
             contentType:          CONTENT_TYPES.css,
-            isShadowUIStylesheet: true
-        });
-    }
-
-    _setupSourceMapsSupport () {
-        sourceMapSupport.install({
-            hookRequire:              true,
-            handleUncaughtExceptions: false,
-            environment:              'node'
+            isShadowUIStylesheet: true,
         });
     }
 
@@ -76,7 +68,7 @@ export default class TestCafe {
             proxy:                    this.proxy,
             browserConnectionGateway: this.browserConnectionGateway,
             configuration:            this.configuration.clone(),
-            compilerService:          this.compilerService
+            compilerService:          this.compilerService,
         });
 
         this.runners.push(newRunner);

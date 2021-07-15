@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-<a href="https://ci.appveyor.com/project/DevExpress/testcafe"><img alt="Functional Windows desktop" src="https://ci.appveyor.com/api/projects/status/ftelkyuiji8lyadf?svg=true"></a>
-<a href="https://travis-ci.org/DevExpress/testcafe"><img alt="All Travis tasks (server, client, functional: mobile, macOS, Edge)" src="https://travis-ci.org/DevExpress/testcafe.svg"></a>
+<a href="https://github.com/DevExpress/testcafe/commits/master"><img alt="Tests" src="https://img.shields.io/github/checks-status/DevExpress/testcafe/master?label=Tests"></a>
+<a href="https://github.com/DevExpress/testcafe/actions/workflows/test-dependencies.yml"><img alt="Test Dependencies" src="https://github.com/DevExpress/testcafe/actions/workflows/test-dependencies.yml/badge.svg" /></a>
 <a href="https://www.npmjs.com/package/testcafe"><img alt="NPM Version" src="https://img.shields.io/npm/v/testcafe.svg" data-canonical-src="https://img.shields.io/npm/v/testcafe.svg" style="max-width:100%;"></a>
 </p>
 
@@ -21,9 +21,9 @@
 </p>
 
 <p align="center">
-  <a href="https://testcafe.io">Homepage</a> &nbsp&nbsp•&nbsp&nbsp
-  <a href="https://testcafe.io/documentation/402635/getting-started">Documentation</a> &nbsp&nbsp•&nbsp&nbsp
-  <a href="https://testcafe.io/402636/faq">FAQ</a> &nbsp&nbsp•&nbsp&nbsp
+  <a href="https://testcafe.io">Homepage</a> &nbsp;&nbsp;•&nbsp;&nbsp;
+  <a href="https://testcafe.io/documentation/402635/getting-started">Documentation</a> &nbsp;&nbsp;•&nbsp;&nbsp;
+  <a href="https://testcafe.io/402636/faq">FAQ</a> &nbsp;&nbsp;•&nbsp;&nbsp;
   <a href="https://testcafe.io/support">Support</a>
 </p>
 
@@ -108,7 +108,7 @@ Read the following article to learn how TestCafe Studio could fit into your work
 
 ### Installation
 
-Ensure that [Node.js](https://nodejs.org/) ([Current or Active LTS](https://github.com/nodejs/Release#release-phases) is recommended, version 10 at minimum) and [npm](https://www.npmjs.com/) are installed on your computer before running it:
+Ensure that [Node.js](https://nodejs.org/) ([Current or Active LTS](https://github.com/nodejs/Release#release-phases) is recommended, version 12 at minimum) and [npm](https://www.npmjs.com/) are installed on your computer before running it:
 
 ```sh
 npm install -g testcafe
@@ -248,9 +248,9 @@ Thank you to all the people who already contributed to TestCafe!
 :---: |:---: |:---: |:---: |:---: |:---: |
 [VasilyStrelyaev](https://github.com/VasilyStrelyaev) |[vitalics](https://github.com/vitalics) |[Vla8islav](https://github.com/Vla8islav) |[wentwrong](https://github.com/wentwrong) |[intermike](https://github.com/intermike) |[DevSide](https://github.com/DevSide) |
 
-[<img alt="b12031106" src="https://avatars1.githubusercontent.com/u/2063566?v=4&s=117" width="117">](https://github.com/b12031106) |[<img alt="tomashanacek" src="https://avatars2.githubusercontent.com/u/1244486?v=4&s=117" width="117">](https://github.com/tomashanacek) |[<img alt="danielroe" src="https://avatars1.githubusercontent.com/u/28706372?v=4&s=117" width="117">](https://github.com/danielroe) |
-:---: |:---: |:---: |
-[b12031106](https://github.com/b12031106) |[tomashanacek](https://github.com/tomashanacek) |[danielroe](https://github.com/danielroe) |
+[<img alt="b12031106" src="https://avatars1.githubusercontent.com/u/2063566?v=4&s=117" width="117">](https://github.com/b12031106) |[<img alt="tomashanacek" src="https://avatars2.githubusercontent.com/u/1244486?v=4&s=117" width="117">](https://github.com/tomashanacek) |[<img alt="danielroe" src="https://avatars1.githubusercontent.com/u/28706372?v=4&s=117" width="117">](https://github.com/danielroe) |[<img alt="Aleksey28" src="https://avatars.githubusercontent.com/u/32869530?v=4&s=117" width="117">](https://github.com/Aleksey28) |[<img alt="kisrefod" src="https://avatars.githubusercontent.com/u/27427579?v=4&s=117" width="117">](https://github.com/kisrefod) |[<img alt="rob4629" src="https://avatars.githubusercontent.com/u/37812673?v=4&s=117" width="117">](https://github.com/rob4629) |
+:---: |:---: |:---: |:---: |:---: |:---: |
+[b12031106](https://github.com/b12031106) |[tomashanacek](https://github.com/tomashanacek) |[danielroe](https://github.com/danielroe) |[Aleksey28](https://github.com/Aleksey28) |[kisrefod](https://github.com/kisrefod) |[rob4629](https://github.com/rob4629) |
 
 ## Plugins
 

@@ -95,7 +95,7 @@ describe('CLI argument parser', function () {
                 .then(function (parser) {
                     expect(parser.opts.browsers).eql([
                         'path:/Apps,Libs/\'Firefox.app', 'ie', 'chrome', 'firefox',
-                        'path:/Apps,Libs/"Chrome.app'
+                        'path:/Apps,Libs/"Chrome.app',
                     ]);
                 });
         });
@@ -105,7 +105,7 @@ describe('CLI argument parser', function () {
                 .then(function (parser) {
                     expect(parser.opts.browsers).eql([
                         'path:/Apps/Firefox.app --arg1',
-                        'chrome --arg2'
+                        'chrome --arg2',
                     ]);
                 });
         });
@@ -120,11 +120,11 @@ describe('CLI argument parser', function () {
         });
 
         it('Should raise error if "--ports" option value is not a integer', function () {
-            return assertRaisesError('--ports 1337,yo', 'Port number is expected to be a non-negative number, but it was "yo".');
+            return assertRaisesError('--ports 1337,yo', 'The port number ("yo") is not of expected type (non-negative number).');
         });
 
         it('Should raise error if "--ports" option has less than 2 ports specified', function () {
-            return assertRaisesError('--ports 1337', 'The "--ports" option requires two numbers to be specified.');
+            return assertRaisesError('--ports 1337', 'The "--ports" argument accepts two values at a time.');
         });
     });
 
@@ -137,7 +137,7 @@ describe('CLI argument parser', function () {
         });
 
         it('Should raise an error if the "--selector-timeout" option value is not an integer', function () {
-            return assertRaisesError('--selector-timeout yo', 'Selector timeout is expected to be a non-negative number, but it was "yo".');
+            return assertRaisesError('--selector-timeout yo', 'The Selector timeout ("yo") is not of expected type (non-negative number).');
         });
     });
 
@@ -150,7 +150,7 @@ describe('CLI argument parser', function () {
         });
 
         it('Should raise an error if the "--assertion-timeout" option value is not an integer', function () {
-            return assertRaisesError('--assertion-timeout yo', 'Assertion timeout is expected to be a non-negative number, but it was "yo".');
+            return assertRaisesError('--assertion-timeout yo', 'The assertion timeout ("yo") is not of expected type (non-negative number).');
         });
     });
 
@@ -163,7 +163,7 @@ describe('CLI argument parser', function () {
         });
 
         it('Should raise an error if the "--page-load-timeout" option value is not an integer', function () {
-            return assertRaisesError('--page-load-timeout yo', 'Page load timeout is expected to be a non-negative number, but it was "yo".');
+            return assertRaisesError('--page-load-timeout yo', 'The page load timeout ("yo") is not of expected type (non-negative number).');
         });
     });
 
@@ -176,7 +176,7 @@ describe('CLI argument parser', function () {
             });
 
             it('Should raise an error on invalid option value', () => {
-                return assertRaisesError('--page-request-timeout str', 'Page request timeout is expected to be a non-negative number, but it was "str".');
+                return assertRaisesError('--page-request-timeout str', 'The page request timeout ("str") is not of expected type (non-negative number).');
             });
         });
 
@@ -188,7 +188,7 @@ describe('CLI argument parser', function () {
             });
 
             it('Should raise an error on invalid option value', () => {
-                return assertRaisesError('--ajax-request-timeout str', 'Ajax request timeout is expected to be a non-negative number, but it was "str".');
+                return assertRaisesError('--ajax-request-timeout str', 'The AJAX request timeout ("str") is not of expected type (non-negative number).');
             });
         });
     });
@@ -202,7 +202,7 @@ describe('CLI argument parser', function () {
         });
 
         it('Should raise an error if the "--browser-init-timeout" option value is not an integer', function () {
-            return assertRaisesError('--browser-init-timeout yo', 'Browser initialization timeout is expected to be a non-negative number, but it was "yo".');
+            return assertRaisesError('--browser-init-timeout yo', 'The browser initialization timeout ("yo") is not of expected type (non-negative number).');
         });
     });
 
@@ -240,7 +240,7 @@ describe('CLI argument parser', function () {
         });
 
         it('Should raise an error if the "--app-init-delay" option value is not an integer', function () {
-            return assertRaisesError('--app-init-delay yo', 'Tested app initialization delay is expected to be a non-negative number, but it was "yo".');
+            return assertRaisesError('--app-init-delay yo', 'The tested app initialization delay ("yo") is not of expected type (non-negative number).');
         });
     });
 
@@ -267,7 +267,7 @@ describe('CLI argument parser', function () {
         });
 
         it('Should raise error if "-T, --test-grep" value is invalid regular expression', function () {
-            return assertRaisesError('-T *+', 'The "--test-grep" option value is not a valid regular expression.');
+            return assertRaisesError('-T *+', 'The "--test-grep" option does not contain a valid regular expression.');
         });
 
         it('Should filter by fixture name with "-f, --fixture" option', function () {
@@ -292,7 +292,7 @@ describe('CLI argument parser', function () {
         });
 
         it('Should raise error if "-F, --fixture-grep" value is invalid regular expression', function () {
-            return assertRaisesError('-F *+', 'The "--fixture-grep" option value is not a valid regular expression.');
+            return assertRaisesError('-F *+', 'The "--fixture-grep" option does not contain a valid regular expression.');
         });
 
         it('Should filter by test meta with "--test-meta" option', function () {
@@ -355,11 +355,11 @@ describe('CLI argument parser', function () {
         });
 
         it('Should raise error if "--test-meta" value is invalid json', function () {
-            return assertRaisesError('--test-meta error', 'The "--test-meta" option value is not a valid key-value pair.');
+            return assertRaisesError('--test-meta error', 'The "--test-meta" option does not contain a valid key-value pair.');
         });
 
         it('Should raise error if "--fixture-meta" value is invalid json', function () {
-            return assertRaisesError('--fixture-meta error', 'The "--fixture-meta" option value is not a valid key-value pair.');
+            return assertRaisesError('--fixture-meta error', 'The "--fixture-meta" option does not contain a valid key-value pair.');
         });
 
         it('Should combine filters provided by multiple options', function () {
@@ -529,19 +529,19 @@ describe('CLI argument parser', function () {
                 return parse(`--ssl key=${__dirname}`)
                     .catch(error => {
                         expect(error.message).to.include(
-                            `Unable to read the "${__dirname}" file, specified by the "key" ssl option. Error details:`
+                            `Unable to read the file referenced by the "key" ssl option ("${__dirname}"). Error details:`
                         );
                     })
                     .then(() => parse(`--ssl cert=${__dirname}`))
                     .catch(error => {
                         expect(error.message).to.include(
-                            `Unable to read the "${__dirname}" file, specified by the "cert" ssl option. Error details:`
+                            `Unable to read the file referenced by the "cert" ssl option ("${__dirname}"). Error details:`
                         );
                     })
                     .then(() => parse(`--ssl pfx=${__dirname}`))
                     .catch(error => {
                         expect(error.message).to.include(
-                            `Unable to read the "${__dirname}" file, specified by the "pfx" ssl option. Error details:`
+                            `Unable to read the file referenced by the "pfx" ssl option ("${__dirname}"). Error details:`
                         );
                     });
             });
@@ -626,7 +626,7 @@ describe('CLI argument parser', function () {
             .then(parser => {
                 expect(parser.opts.clientScripts).eql([
                     'asserts/jquery.js',
-                    'mockDate.js'
+                    'mockDate.js',
                 ]);
             });
     });
@@ -642,6 +642,79 @@ describe('CLI argument parser', function () {
                 expect(parser.opts.reporter[1].name).eql('json');
                 expect(parser.opts.reporter[1].output).eql(path.resolve(cwd, filePath));
             });
+    });
+
+    describe('Quarantine Option', function () {
+        it('Should parse quarantine arguments', async () => {
+            async function checkCliArgs (argsString) {
+                const parser = await parse(argsString);
+
+                expect(parser.opts.quarantineMode).to.be.ok;
+                expect(parser.opts.quarantineMode.attemptLimit).equal(5);
+                expect(parser.opts.quarantineMode.successThreshold).equal(1);
+            }
+
+            await checkCliArgs('-q attemptLimit=5,successThreshold=1');
+            await checkCliArgs('--quarantine-mode attemptLimit=5,successThreshold=1');
+        });
+
+        it('Should pass if only "successThreshold" is provided', async () => {
+            async function checkCliArgs (argsString) {
+                const parser = await parse(argsString);
+
+                expect(parser.opts.quarantineMode).to.be.ok;
+                expect(parser.opts.quarantineMode.successThreshold).equal(1);
+            }
+
+            await checkCliArgs('-q successThreshold=1');
+            await checkCliArgs('--quarantine-mode successThreshold=1');
+        });
+
+        it('Should fail if the argument value is not specified', async () => {
+            await assertRaisesError('-q attemptLimit=', 'The "--quarantine-mode" option does not contain a valid key-value pair.');
+            await assertRaisesError('--quarantine-mode attemptLimit=', 'The "--quarantine-mode" option does not contain a valid key-value pair.');
+        });
+
+        it('Should fail if "successThreshold" is greater or equal to "attemptLimit"', async () => {
+            await assertRaisesError('-q attemptLimit=2,successThreshold=2', 'The value of "attemptLimit" (2) should be greater then the value of "successThreshold" (2).');
+            await assertRaisesError('--quarantine-mode attemptLimit=2,successThreshold=2', 'The value of "attemptLimit" (2) should be greater then the value of "successThreshold" (2).');
+
+            await assertRaisesError('-q attemptLimit=2,successThreshold=3', 'The value of "attemptLimit" (2) should be greater then the value of "successThreshold" (3).');
+            await assertRaisesError('--quarantine-mode attemptLimit=2,successThreshold=3', 'The value of "attemptLimit" (2) should be greater then the value of "successThreshold" (3).');
+        });
+
+        it('Should fail if "attemptLimit" is less than 3 with the default "successThreshold" value (3)', async () => {
+            await assertRaisesError('-q attemptLimit=2', 'The value of "attemptLimit" (2) should be greater then the value of "successThreshold" (3).');
+            await assertRaisesError('--quarantine-mode attemptLimit=2', 'The value of "attemptLimit" (2) should be greater then the value of "successThreshold" (3).');
+        });
+
+        it('Should fail if "attemptLimit" is less than 2', async () => {
+            await assertRaisesError('-q attemptLimit=1', 'The "attemptLimit" parameter only accepts values of 2 and up.');
+            await assertRaisesError('--quarantine-mode attemptLimit=1', 'The "attemptLimit" parameter only accepts values of 2 and up.');
+
+            await assertRaisesError('-q attemptLimit=0', 'The "attemptLimit" parameter only accepts values of 2 and up.');
+            await assertRaisesError('--quarantine-mode attemptLimit=0', 'The "attemptLimit" parameter only accepts values of 2 and up.');
+        });
+
+        it('Should fail if "successThreshold" is less than 1', async () => {
+            await assertRaisesError('-q successThreshold=0', 'The "successThreshold" parameter only accepts values of 1 and up.');
+            await assertRaisesError('--quarantine-mode successThreshold=0', 'The "successThreshold" parameter only accepts values of 1 and up.');
+        });
+
+        it('Should not fail if the quarantine option is not the latest option and no quarantine mode arguments are specified', async () => {
+            async function checkCliArgs (argsString) {
+                const parser = await parse(argsString);
+
+                expect(parser.opts.quarantineMode).to.be.ok;
+                expect(parser.opts.browsers).eql(['chrome']);
+                expect(parser.opts.src).eql(['test.js']);
+            }
+
+            await checkCliArgs('-q chrome test.js');
+            await checkCliArgs('--quarantine-mode chrome test.js');
+            await checkCliArgs('chrome -q test.js');
+            await checkCliArgs('chrome --quarantine-mode test.js');
+        });
     });
 
     it('Should parse command line arguments', function () {
@@ -729,11 +802,11 @@ describe('CLI argument parser', function () {
             { long: '--compiler-options' },
             { long: '--page-request-timeout' },
             { long: '--ajax-request-timeout' },
-            { long: '--cache' }
+            { long: '--cache' },
         ];
 
         const parser  = new CliArgumentParser('');
-        const options = [ ...parser.program.options, ...parser.experimental.options];
+        const options = parser.program.options;
 
         expect(options.length).eql(EXPECTED_OPTIONS.length, CHANGE_CLI_WARNING);
 
@@ -770,7 +843,7 @@ describe('CLI argument parser', function () {
             '--disable-page-caching',
             '--disable-page-reloads',
             '--disable-screenshots',
-            '--disable-multiple-windows'
+            '--disable-multiple-windows',
         ].join(' ');
 
         return parse(argumentsString)

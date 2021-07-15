@@ -93,13 +93,13 @@ describe('[API] t.ctx', () => {
 
 describe('[API] fixture.before/fixture.after hooks', () => {
     it('Should run hooks before and after fixture', () => {
-        return runTests('./testcafe-fixtures/fixture-hooks.js', null);
+        return runTests('./testcafe-fixtures/fixture-hooks.js');
     });
 
     it('Should keep sequential reports with long executing hooks', () => {
         return runTests('./testcafe-fixtures/fixture-hooks-seq.js', null, {
             shouldFail: true,
-            only:       'chrome'
+            only:       'chrome',
         }).catch(errs => {
             expect(errs[0]).contains('$$test1$$');
             expect(errs[1]).contains('$$afterhook1$$');
@@ -112,7 +112,7 @@ describe('[API] fixture.before/fixture.after hooks', () => {
     it('Should fail all tests in fixture if fixture.before hooks fails', () => {
         return runTests('./testcafe-fixtures/fixture-before-fail.js', null, {
             shouldFail: true,
-            only:       'chrome, firefox'
+            only:       'chrome, firefox',
         }).catch(errs => {
             const allErrors = config.currentEnvironment.browsers.length === 1 ? errs : errs['chrome'].concat(errs['firefox']);
 

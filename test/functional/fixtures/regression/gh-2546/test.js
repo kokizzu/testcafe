@@ -1,52 +1,49 @@
-const path     = require('path');
-const expect   = require('chai').expect;
-const { exec } = require('child_process');
-const config   = require('../../../config');
+const path               = require('path');
+const { expect }         = require('chai');
+const { exec }           = require('child_process');
+const config             = require('../../../config');
+const unhandledRejection = require('./unhandled-rejection');
 
 if (config.useLocalBrowsers) {
     describe('[Regression](GH-2546)', function () {
         this.timeout(60000);
 
-        it('Should fail on uncaught promise rejection when skipUncaughtErrors is false', function () {
-            return runTests('./testcafe-fixtures/index.js', 'Unhandled promise rejection', { shouldFail: true })
-                .catch(function (errs) {
-                    const allErrors = [];
-
-                    if (!Array.isArray(errs)) {
-                        const browsers = Object.keys(errs);
-
-                        browsers.forEach(browser => {
-                            allErrors.push(errs[browser][0]);
-                        });
-                    }
-                    else
-                        allErrors.push(errs[0]);
-
-                    expect(allErrors.length).gte(1);
-
-                    allErrors.forEach(function (err) {
-                        expect(err).contains('Unhandled promise rejection');
-                    });
-                });
+        afterEach(() => {
+            unhandledRejection.delete();
         });
 
-        it('Should not fail on uncaught exception when skipUncaughtErrors is true', function () {
-            let unhandledRejectionRaiseCount = 0;
+        describe('uncaught promise rejection', () => {
+            it('Should fail when skipUncaughtErrors is false', function () {
+                return runTests('./testcafe-fixtures/index.js', 'Unhandled promise rejection', { shouldFail: true })
+                    .catch(function (errs) {
+                        const allErrors = [];
 
-            const listener = err => {
-                unhandledRejectionRaiseCount++;
+                        if (!Array.isArray(errs)) {
+                            const browsers = Object.keys(errs);
 
-                expect(err.message).eql('reject');
-            };
+                            browsers.forEach(browser => {
+                                allErrors.push(errs[browser][0]);
+                            });
+                        }
+                        else
+                            allErrors.push(errs[0]);
 
-            process.on('unhandledRejection', listener);
+                        expect(allErrors.length).gte(1);
 
-            return runTests('./testcafe-fixtures/index.js', 'Unhandled promise rejection', { skipUncaughtErrors: true })
-                .then(() => {
-                    process.removeListener('unhandledRejection', listener);
+                        allErrors.forEach(function (err) {
+                            expect(err).contains('Unhandled promise rejection');
+                        });
 
-                    expect(unhandledRejectionRaiseCount).gte(1);
-                });
+                        expect(unhandledRejection.getData()).contains('reject');
+                    });
+            });
+
+            it('Should not fail when skipUncaughtErrors is true', function () {
+                return runTests('./testcafe-fixtures/index.js', 'Unhandled promise rejection', { skipUncaughtErrors: true })
+                    .then(() => {
+                        expect(unhandledRejection.getData()).contains('reject');
+                    });
+            });
         });
 
         it('Should fail on uncaught exception when skipUncaughtErrors is false', function () {
